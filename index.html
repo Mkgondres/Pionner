@@ -4,19 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pionner - Inicio</title>
-    <!-- Enlazamos el archivo de estilos que crearemos después -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="app-container">
-        <!-- Encabezado principal de la cafetería -->
         <header class="app-header">
             <h1>PIONNER</h1>
             <p class="subtitle">Gestión de Cafetería</p>
         </header>
 
-        <!-- Bloque 1: Selección de Rol -->
         <section class="role-section" id="roleSection">
             <h2>Seleccione su rol</h2>
             <div class="roles-grid">
@@ -27,30 +24,22 @@
             </div>
         </section>
 
-        <!-- Bloque 2: Formulario de Acceso (Oculto inicialmente por CSS hasta que pinchen un rol) -->
         <section class="auth-section" id="authSection">
             <h3 id="authTitle">Acceso</h3>
-            <div class="form-group">
-                <label for="userName">Escriba su nombre</label>
-                <input type="text" id="userName" placeholder="Ej. Yuandri" autocomplete="off">
-            </div>
+            
+            <p style="margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem;">Ingrese su PIN de seguridad</p>
             
             <div class="form-group">
-                <label for="userPin">Digite el PIN</label>
-                <!-- Usamos 'tel' para que en móviles despliegue directamente el teclado numérico -->
                 <input type="password" id="userPin" maxlength="4" inputmode="numeric" placeholder="••••">
             </div>
 
-            <!-- Botones de acción -->
             <div class="auth-actions">
                 <button class="btn-secondary" id="btnBack">Volver</button>
-                <button class="btn-primary" id="btnSubmit">Continuar</button>
+                <button class="btn-primary" id="btnSubmit">Entrar</button>
             </div>
         </section>
     </div>
 
-    <!-- Enlazamos el archivo de lógica que crearemos después -->
     <script src="script.js"></script>
 </body>
 </html>
-
