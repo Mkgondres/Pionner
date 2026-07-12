@@ -29,10 +29,10 @@ let currentRole = '';
 
 // Nombres correspondientes a cada rol (SIN LOS PINES)
 const userNames = {
-    'subgerente': 'Yuandri', 
-    'gerente': 'Nombre del Gerente',
-    'duena': 'Nombre de la Dueña',
-    'administradora': 'Tu Nombre'
+    'subgerente': 'Yoandri', 
+    'gerente': 'Dairan',
+    'duena': 'Maria del Carmen',
+    'administradora': 'Marikarla'
 };
 
 // Lógica al tocar un rol
