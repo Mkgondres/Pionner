@@ -1,8 +1,7 @@
-// 1. Importamos Firebase y la Base de Datos (Firestore)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
-// 2. Tu configuración de Firebase
+// Reemplaza esto con la configuración que copiamos de Firebase hace un rato
 const firebaseConfig = {
   apiKey: "AIzaSyAhueHCWyIWibnQCf_8gSH3KP6eliAW5Vk",
   authDomain: "pionner-7c1ef.firebaseapp.com",
@@ -12,11 +11,9 @@ const firebaseConfig = {
   appId: "1:205435907267:web:6bcd4a919afa5610a44676"
 };
 
-// 3. Inicializamos Firebase y la Base de Datos
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 4. Referencias a la pantalla
 const roleSection = document.getElementById('roleSection');
 const authSection = document.getElementById('authSection');
 const authTitle = document.getElementById('authTitle');
@@ -25,21 +22,20 @@ const btnBack = document.getElementById('btnBack');
 const btnSubmit = document.getElementById('btnSubmit');
 const roleButtons = document.querySelectorAll('.btn-role');
 
-let currentRole = '';
+let currentUser = '';
 
-// Nombres correspondientes a cada rol (SIN LOS PINES)
+// Nombres para mostrar en pantalla
 const userNames = {
-    'subgerente': 'Yoandri', 
-    'gerente': 'Dairan',
-    'duena': 'Maria del Carmen',
-    'administradora': 'Marikarla'
+    'yoandri': 'Yoandri', 
+    'dairan': 'Dairan',
+    'mariadelcarmen': 'Maria Del Carmen',
+    'marikarla': 'Marikarla'
 };
 
-// Lógica al tocar un rol
 roleButtons.forEach(button => {
     button.addEventListener('click', () => {
-        currentRole = button.getAttribute('data-role');
-        const personName = userNames[currentRole];
+        currentUser = button.getAttribute('data-user');
+        const personName = userNames[currentUser];
         
         authTitle.textContent = '¡Bienvenido/a, ' + personName + '!';
         roleSection.style.display = 'none';
@@ -47,15 +43,13 @@ roleButtons.forEach(button => {
     });
 });
 
-// Lógica para el botón "Volver"
 btnBack.addEventListener('click', () => {
     userPinInput.value = ''; 
-    currentRole = '';
+    currentUser = '';
     authSection.classList.remove('active');
     roleSection.style.display = 'block';
 });
 
-// Lógica para el botón "Entrar" (Conectado a Firebase)
 btnSubmit.addEventListener('click', async () => {
     const pinIngresado = userPinInput.value;
 
@@ -64,34 +58,30 @@ btnSubmit.addEventListener('click', async () => {
         return;
     }
 
-    // Cambiamos el texto del botón mientras consulta a la base de datos
     btnSubmit.textContent = 'Verificando...';
     btnSubmit.disabled = true;
 
     try {
-        // Consultamos la base de datos secreta de Firebase
-        const docRef = doc(db, "usuarios", currentRole);
+        const docRef = doc(db, "usuarios", currentUser);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
             const pinReal = docSnap.data().pin;
             
             if (pinIngresado === pinReal) {
-                alert('¡Acceso concedido, ' + userNames[currentRole] + '!');
-                // Aquí luego programaremos qué pasa después de entrar
+                alert('¡Acceso concedido, ' + userNames[currentUser] + '!');
             } else {
                 alert('PIN incorrecto. Por favor, inténtelo de nuevo.');
                 userPinInput.value = '';
             }
         } else {
-            alert('Aún no se ha configurado el PIN de este usuario en la base de datos.');
+            alert('Aún no se ha configurado el PIN de este usuario.');
         }
     } catch (error) {
         console.error("Error:", error);
         alert('Error de conexión.');
     }
 
-    // Volvemos a la normalidad el botón
     btnSubmit.textContent = 'Entrar';
     btnSubmit.disabled = false;
 });
