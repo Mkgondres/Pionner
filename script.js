@@ -113,3 +113,54 @@ window.selectUser = selectUser;
 window.goBack = goBack;
 window.logout = logout;
 window.verifyPin = verifyPin;
+// --- LÓGICA DEL MENÚ PRINCIPAL ---
+
+// Esta función configura qué botones ve cada usuario
+window.configurarPantallaPrincipal = function(userId, userName) {
+    document.getElementById('welcomeUserText').innerText = `Hola, ${userName}`;
+    
+    const btnCuadre = document.getElementById('btnIniciarCuadre');
+    const btnAjustes = document.getElementById('btnAjustesMenu');
+
+    if (userId === 'yoandri') {
+        // Vista Operativa (Yoandri)
+        btnCuadre.style.display = 'block';
+        btnAjustes.style.display = 'none';
+    } else {
+        // Vista Administrativa (Marikarla y María del Carmen)
+        btnCuadre.style.display = 'none';
+        btnAjustes.style.display = 'block';
+    }
+}
+
+// Lógica inteligente de los turnos por hora
+window.iniciarCuadre = function() {
+    const ahora = new Date();
+    const hora = ahora.getHours();
+    let nombreTurno = "";
+
+    // Si es por la mañana (ej. entre 6:00 AM y 2:00 PM), está cerrando la madrugada
+    if (hora >= 6 && hora < 14) { 
+        nombreTurno = "Turno de la Noche";
+    } 
+    // Si es por la tarde/noche (ej. entre 6:00 PM y 11:59 PM), está cerrando el día
+    else if (hora >= 18 && hora <= 23) {
+        nombreTurno = "Turno del Día";
+    } 
+    // Si lo hace a una hora inusual
+    else {
+        nombreTurno = "Turno Especial"; 
+    }
+
+    alert(`Has iniciado un nuevo cuadre.\nSe registrará como: ${nombreTurno}\nHora exacta: ${ahora.toLocaleTimeString()}`);
+    
+    // Aquí pondremos el código para abrir la pantalla de la tabla con los productos
+}
+
+window.verHistorial = function() {
+    alert("Revisando la base de datos... Aún no hay cuadres registrados.");
+}
+
+window.verAlmacen = function() {
+    alert("Abriendo el Control de Almacén...");
+}
