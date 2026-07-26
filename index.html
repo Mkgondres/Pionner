@@ -42,21 +42,43 @@
             </div>
         </div>
 
-        <!-- PANTALLA 3: El interior de la aplicación (Menú Principal) -->
+                <!-- PANTALLA 3: El interior de la aplicación (Menú Principal) -->
         <div id="mainApp" class="screen">
-            <div class="header">
-                <h2>Menú Principal</h2>
+            <div class="header" style="position: relative;">
+                <!-- Campanita de Notificaciones -->
+                <div class="bell-container" onclick="verNotificaciones()">
+                    🔔 <span id="contadorCampanita" class="badge">0</span>
+                </div>
+                <h2>Pionner</h2>
                 <p class="subtitle" id="welcomeUserText">Cargando...</p>
             </div>
             
-            <p style="color: var(--text-gray); font-size: 0.9rem; margin-bottom: 30px;">
-                ¡Has entrado con éxito! Aquí construiremos las opciones de la cafetería.
-            </p>
+            <div class="dashboard-menu">
+                <!-- Botón Exclusivo de Yoandri (Verde) -->
+                <button id="btnIniciarCuadre" class="btn-primary" style="display: none;" onclick="iniciarCuadre()">
+                    Iniciar Cuadre de Turno
+                </button>
 
-            <div class="auth-actions">
+                <!-- Botones Generales para Todos -->
+                <button class="btn-menu" onclick="verHistorial()">
+                    📁 Historial de Cuadres
+                </button>
+                
+                <button class="btn-menu" onclick="verAlmacen()">
+                    📦 Control de Almacén
+                </button>
+                
+                <!-- Botón Exclusivo de Ustedes (Administradoras) -->
+                <button id="btnAjustesMenu" class="btn-menu" style="display: none;" onclick="gestionarMenu()">
+                    ⚙️ Ajustes de Inventario
+                </button>
+            </div>
+
+            <div class="auth-actions" style="margin-top: 40px;">
                 <button class="btn-secondary" onclick="logout()">Cerrar Sesión</button>
             </div>
         </div>
+
         
     </div>
 
