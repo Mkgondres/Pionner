@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAhueHCWyIWibnQCf_8gSH3KP6eliAW5Vk",
@@ -16,17 +16,21 @@ const db = getFirestore(app);
 let currentUser = '';
 let currentUserName = '';
 
-// Sistema de mensajes (Solo para errores)
+// Sistema de mensajes
 function showMessage(text, type) {
     const msgBox = document.getElementById('feedbackMessage');
-    msgBox.textContent = text;
-    msgBox.className = 'feedback-message ' + type;
+    if (msgBox) {
+        msgBox.textContent = text;
+        msgBox.className = 'feedback-message ' + type;
+    }
 }
 
 function clearMessage() {
     const msgBox = document.getElementById('feedbackMessage');
-    msgBox.className = 'feedback-message';
-    msgBox.textContent = '';
+    if (msgBox) {
+        msgBox.className = 'feedback-message';
+        msgBox.textContent = '';
+    }
 }
 
 function selectUser(userId, userName) {
@@ -83,16 +87,10 @@ async function verifyPin() {
             const pinReal = docSnap.data().pin;
             
             if (pinIngresado === pinReal) {
-                // PIN CORRECTO: Entra directo a la aplicación sin mensajes
                 document.getElementById('authSection').classList.remove('active');
                 document.getElementById('mainApp').classList.add('active');
-                
-                // 👉 AQUÍ ESTÁ LA LÍNEA MÁGICA QUE FALTABA 👈
-                // Esto le avisa al menú si debe encender el botón verde o los ajustes
                 configurarPantallaPrincipal(currentUser, currentUserName);
-                
             } else {
-                // PIN INCORRECTO: Muestra el mensaje de error integrado
                 showMessage('PIN incorrecto. Por favor, intenta de nuevo.', 'error');
                 userPinInput.value = '';
             }
@@ -111,15 +109,7 @@ async function verifyPin() {
 // Limpiar error al escribir
 document.getElementById('userPin').addEventListener('input', clearMessage);
 
-// Exponer funciones
-window.selectUser = selectUser;
-window.goBack = goBack;
-window.logout = logout;
-window.verifyPin = verifyPin;
-
-// --- LÓGICA DEL MENÚ PRINCIPAL ---
-
-// Esta función configura qué botones ve cada usuario
+// Configuración del Menú Principal según el usuario
 window.configurarPantallaPrincipal = function(userId, userName) {
     document.getElementById('welcomeUserText').innerText = `Usuario activo: ${userName}`;
     
@@ -127,56 +117,13 @@ window.configurarPantallaPrincipal = function(userId, userName) {
     const btnAjustes = document.getElementById('btnAjustesMenu');
 
     if (userId === 'yoandri') {
-        // Vista Operativa (Yoandri)
         btnCuadre.style.display = 'block';
         btnAjustes.style.display = 'none';
     } else {
-        // Vista Administrativa (Marikarla y María del Carmen)
         btnCuadre.style.display = 'none';
         btnAjustes.style.display = 'block';
     }
 }
-
-// --- LÓGICA DE LAS PANTALLAS ---
-
-// Lógica para iniciar el cuadre
-window.iniciarCuadre = function() {
-    // 1. Ocultamos el menú principal
-    document.getElementById('mainApp').classList.remove('active');
-    
-    // 2. Mostramos la sección donde estará la tabla de productos (que crearemos en el HTML)
-    const seccionCuadre = document.getElementById('cuadreSection');
-    
-    if (seccionCuadre) {
-        seccionCuadre.classList.add('active');
-    } else {
-        // Si aún no has creado el HTML, usamos tu sistema de mensajes en lugar del cartel feo
-        showMessage("Sección de cuadre en construcción.", "error");
-        console.warn("Aviso: Falta crear el div con id='cuadreSection' en el index.html");
-    }
-}
-
-// Función para volver al menú principal desde el cuadre
-window.cancelarCuadre = function() {
-    const seccionCuadre = document.getElementById('cuadreSection');
-    if (seccionCuadre) {
-        seccionCuadre.classList.remove('active');
-    }
-    document.getElementById('mainApp').classList.add('active');
-    clearMessage();
-}
-
-window.verHistorial = function() {
-    // Reemplazamos el alert feo
-    showMessage("Historial en construcción. Aún no hay cuadres.", "error");
-}
-
-window.verAlmacen = function() {
-    // Reemplazamos el alert feo
-    showMessage("Control de almacén en construcción.", "error");
-}
-import { getDocs, collection, addf, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-// (Nota: Asegúrate de tener addDoc importado arriba en tus imports de firebase si no lo tienes)
 
 // Cargar productos de Firebase al iniciar el cuadre
 window.iniciarCuadre = async function() {
@@ -193,7 +140,6 @@ window.iniciarCuadre = async function() {
 
         querySnapshot.forEach((docSnap) => {
             const p = docSnap.data();
-            // Solo mostramos productos que tengan precio de venta configurado
             if (p.precioVenta > 0) {
                 html += `<tr style="border-bottom: 1px solid #f3f4f6;">
                     <td style="padding: 8px 4px;">${p.nombre}</td>
@@ -212,13 +158,22 @@ window.iniciarCuadre = async function() {
     }
 }
 
-// Función para guardar el cuadre definitivo y calcular la hora exacta al terminar
+// Función para volver al menú principal desde el cuadre
+window.cancelarCuadre = function() {
+    const seccionCuadre = document.getElementById('cuadreSection');
+    if (seccionCuadre) {
+        seccionCuadre.classList.remove('active');
+    }
+    document.getElementById('mainApp').classList.add('active');
+    clearMessage();
+}
+
+// Guardar el cuadre definitivo calculando la hora al terminar
 window.guardarCuadreFinal = function() {
     const ahora = new Date();
     const hora = ahora.getHours();
     let nombreTurno = "";
 
-    // Regla inteligente de los turnos por hora (al cerrar el turno)
     if (hora >= 6 && hora < 14) { 
         nombreTurno = "Turno de la Noche (Cierre Mañana)";
     } else if (hora >= 18 && hora <= 23 || hora < 6) {
@@ -229,11 +184,23 @@ window.guardarCuadreFinal = function() {
 
     const gastos = parseFloat(document.getElementById('gastosTurno').value) || 0;
 
-    // Aquí procesaremos los inputs de conteo para calcular el total vendido
-    showMessage(`¡Cuadre guardado con éxito como: ${nombreTurno} a las ${ahora.toLocaleTimeString()}!`, "success");
+    alert(`¡Cuadre guardado con éxito!\nRegistrado como: ${nombreTurno}\nHora exacta: ${ahora.toLocaleTimeString()}`);
     
-    // Regresar al menú principal después de guardar
     setTimeout(() => {
         cancelarCuadre();
-    }, 2000);
+    }, 1500);
 }
+
+window.verHistorial = function() {
+    alert("Historial en construcción. Aún no hay cuadres.");
+}
+
+window.verAlmacen = function() {
+    alert("Control de almacén en construcción.");
+}
+
+// Exponer funciones globales necesarias
+window.selectUser = selectUser;
+window.goBack = goBack;
+window.logout = logout;
+window.verifyPin = verifyPin;
