@@ -1,20 +1,20 @@
-/* Variables de colores para mantener un diseño consistente */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 :root {
-    --primary-color: #d35400; /* Tono naranja/café cálido */
-    --primary-hover: #e67e22;
-    --bg-color: #f5f6fa;
-    --text-main: #2f3640;
-    --text-light: #718093;
-    --card-bg: #ffffff;
-    --border-radius: 12px;
+    --primary-color: #D97736; /* Tono cálido caramelo/pan */
+    --primary-hover: #BF652E;
+    --secondary-color: #3E2723; /* Tono café oscuro */
+    --bg-color: #FCF9F2; /* Fondo crema muy suave */
+    --card-bg: #FFFFFF;
+    --text-main: #333333;
+    --text-light: #888888;
 }
 
-/* Reseteo básico para que se vea igual en cualquier teléfono */
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Poppins', sans-serif;
 }
 
 body {
@@ -31,111 +31,143 @@ body {
     background-color: var(--card-bg);
     width: 100%;
     max-width: 400px;
-    padding: 30px 20px;
-    border-radius: var(--border-radius);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    padding: 40px 30px;
+    border-radius: 24px;
+    box-shadow: 0 12px 35px rgba(62, 39, 35, 0.08);
     text-align: center;
 }
 
-/* Encabezado */
+.app-header {
+    margin-bottom: 35px;
+}
+
 .app-header h1 {
+    color: var(--secondary-color);
     font-size: 2.2rem;
-    color: var(--primary-color);
-    letter-spacing: 2px;
-    margin-bottom: 5px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
 }
 
-.app-header .subtitle {
+.subtitle {
     color: var(--text-light);
-    font-size: 0.9rem;
-    margin-bottom: 30px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-size: 0.95rem;
+    font-weight: 400;
+    margin-top: 5px;
 }
 
-/* Sección de Roles */
-.role-section h2 {
-    font-size: 1.2rem;
+h2, h3 {
+    color: var(--secondary-color);
+    font-size: 1.1rem;
     margin-bottom: 20px;
-    color: var(--text-main);
+    font-weight: 600;
 }
 
+/* Sección de Botones de Nombres */
 .roles-grid {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
 }
 
 .btn-role {
-    background-color: var(--bg-color);
-    border: 2px solid #dcdde1;
+    background-color: var(--card-bg);
     color: var(--text-main);
-    padding: 15px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    border-radius: var(--border-radius);
+    border: 2px solid #F0E6D2;
+    padding: 16px;
+    border-radius: 14px;
+    font-size: 1.05rem;
+    font-weight: 500;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-role:hover, .btn-role:active {
+    border-color: var(--primary-color);
+    background-color: #FFF9F5;
+    color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(217, 119, 54, 0.15);
+}
+
+/* Sección de Contraseña */
+.auth-section {
+    display: none;
+    animation: fadeIn 0.4s ease forwards;
+}
+
+.auth-section.active {
+    display: block;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+#userPin {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.8rem;
+    text-align: center;
+    letter-spacing: 12px;
+    border: 2px solid #F0E6D2;
+    border-radius: 14px;
+    color: var(--secondary-color);
+    background-color: #FCF9F2;
     transition: all 0.3s ease;
 }
 
-/* Efecto al tocar el botón en el móvil */
-.btn-role:active {
+#userPin:focus {
+    outline: none;
     border-color: var(--primary-color);
-    background-color: #fff3e0;
+    background-color: var(--card-bg);
+    box-shadow: 0 0 0 4px rgba(217, 119, 54, 0.1);
 }
 
-/* Sección de Autenticación (Oculta por defecto) */
-.auth-section {
-    display: none; /* Aquí escondemos la sección inicialmente */
-    animation: fadeIn 0.4s ease;
+#userPin::placeholder {
+    letter-spacing: normal;
+    color: #CCCCCC;
+    font-size: 1.2rem;
+    transform: translateY(-4px);
 }
 
-/* Esta clase la activaremos luego con JavaScript */
-.auth-section.active {
-    display: block; 
+.auth-actions {
+    display: flex;
+    gap: 12px;
 }
 
-#authTitle {
-    font-size: 1.3rem;
-    margin-bottom: 25px;
-    color: var(--primary-color);
-    text-transform: capitalize;
+.btn-primary, .btn-secondary {
+    flex: 1;
+    padding: 16px;
+    border: none;
+    border-radius: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-/* Campos de formulario */
-.form-group {
-    margin-bottom: 20px;
-    text-align: left;
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
 }
 
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 500;
-    font-size: 0.9rem;
+.btn-primary:hover, .btn-primary:active {
+    background-color: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(217, 119, 54, 0.25);
+}
+
+.btn-secondary {
+    background-color: #F5F5F5;
+    color: var(--text-light);
+}
+
+.btn-secondary:hover, .btn-secondary:active {
+    background-color: #E8E8E8;
     color: var(--text-main);
 }
 
-.form-group input {
-    width: 100%;
-    padding: 12px 15px;
-    font-size: 1rem;
-    border: 1px solid #dcdde1;
-    border-radius: 8px;
-    outline: none;
-    transition: border-color 0.3s;
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
 }
-
-.form-group input:focus {
-    border-color: var(--primary-color);
-}
-
-/* Botones de acción final */
-.auth-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 30px;
-}
-
-.
-
