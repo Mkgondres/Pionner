@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
-// Tu configuración de Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAhueHCWyIWibnQCf_8gSH3KP6eliAW5Vk",
   authDomain: "pionner-7c1ef.firebaseapp.com",
@@ -17,33 +16,58 @@ const db = getFirestore(app);
 let currentUser = '';
 let currentUserName = '';
 
-// Función cuando tocas tu nombre
+// Sistema de mensajes (Solo para errores)
+function showMessage(text, type) {
+    const msgBox = document.getElementById('feedbackMessage');
+    msgBox.textContent = text;
+    msgBox.className = 'feedback-message ' + type;
+}
+
+function clearMessage() {
+    const msgBox = document.getElementById('feedbackMessage');
+    msgBox.className = 'feedback-message';
+    msgBox.textContent = '';
+}
+
 function selectUser(userId, userName) {
     currentUser = userId;
     currentUserName = userName;
     
-    document.getElementById('userNameDisplay').textContent = '¡Bienvenido/a, ' + userName + '!';
-    document.getElementById('roleSelection').style.display = 'none';
+    document.getElementById('userPin').value = '';
+    clearMessage();
+    
+    document.getElementById('userNameDisplay').textContent = '¡Hola, ' + userName + '!';
+    
+    document.getElementById('roleSelection').classList.remove('active');
     document.getElementById('authSection').classList.add('active');
 }
 
-// Función del botón cancelar
 function goBack() {
-    document.getElementById('userPin').value = ''; 
+    currentUser = '';
+    currentUserName = '';
+    clearMessage();
+    
+    document.getElementById('authSection').classList.remove('active');
+    document.getElementById('roleSelection').classList.add('active');
+}
+
+// Cerrar sesión y volver al inicio
+function logout() {
     currentUser = '';
     currentUserName = '';
     
-    document.getElementById('authSection').classList.remove('active');
-    document.getElementById('roleSelection').style.display = 'flex';
+    document.getElementById('mainApp').classList.remove('active');
+    document.getElementById('roleSelection').classList.add('active');
 }
 
-// Función del botón Entrar (Verifica en Firebase)
 async function verifyPin() {
     const userPinInput = document.getElementById('userPin');
     const pinIngresado = userPinInput.value;
 
+    clearMessage();
+
     if (pinIngresado === '') {
-        alert('Por favor, digite su PIN de 4 números.');
+        showMessage('Por favor, ingresa tu PIN de 4 dígitos.', 'error');
         return;
     }
 
@@ -59,24 +83,33 @@ async function verifyPin() {
             const pinReal = docSnap.data().pin;
             
             if (pinIngresado === pinReal) {
-                alert('¡Acceso concedido, ' + currentUserName + '!');
+                // PIN CORRECTO: Entra directo a la aplicación sin mensajes
+                document.getElementById('authSection').classList.remove('active');
+                document.getElementById('mainApp').classList.add('active');
+                document.getElementById('welcomeUserText').textContent = 'Usuario activo: ' + currentUserName;
+                
             } else {
-                alert('PIN incorrecto. Por favor, inténtelo de nuevo.');
+                // PIN INCORRECTO: Muestra el mensaje de error integrado
+                showMessage('PIN incorrecto. Por favor, intenta de nuevo.', 'error');
                 userPinInput.value = '';
             }
         } else {
-            alert('Aún no se ha configurado el PIN de este usuario.');
+            showMessage('Error: Usuario no encontrado en la base de datos.', 'error');
         }
     } catch (error) {
         console.error("Error:", error);
-        alert('Error de conexión.');
+        showMessage('Error de conexión con la base de datos.', 'error');
     }
 
     btnSubmit.textContent = 'Entrar';
     btnSubmit.disabled = false;
 }
 
-// Esto conecta las funciones con los botones del HTML
+// Limpiar error al escribir
+document.getElementById('userPin').addEventListener('input', clearMessage);
+
+// Exponer funciones
 window.selectUser = selectUser;
 window.goBack = goBack;
+window.logout = logout;
 window.verifyPin = verifyPin;
