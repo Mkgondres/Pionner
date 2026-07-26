@@ -8,30 +8,56 @@
 </head>
 <body>
     <div class="app-container">
-        <div class="app-header">
-            <h1>Pionner</h1>
-            <p class="subtitle">Selecciona tu usuario para ingresar</p>
+        
+        <!-- PANTALLA 1: Selección de Usuarios -->
+        <div id="roleSelection" class="screen active">
+            <div class="header">
+                <h1>Pionner</h1>
+                <p class="subtitle">Selecciona tu usuario para ingresar</p>
+            </div>
+            <div class="roles-grid">
+                <button class="btn-role" onclick="selectUser('mariadelcarmen', 'María del Carmen')">María del Carmen</button>
+                <button class="btn-role" onclick="selectUser('marikarla', 'Marikarla')">Marikarla</button>
+                <button class="btn-role" onclick="selectUser('yoandri', 'Yoandri')">Yoandri</button>
+            </div>
         </div>
 
-        <!-- Pantalla 1: Selección de Usuarios -->
-        <div id="roleSelection" class="roles-grid">
-            <button class="btn-role" onclick="selectUser('mariadelcarmen', 'María del Carmen')">María del Carmen</button>
-            <button class="btn-role" onclick="selectUser('marikarla', 'Marikarla')">Marikarla</button>
-            <button class="btn-role" onclick="selectUser('yoandri', 'Yoandri')">Yoandri</button>
-        </div>
-
-        <!-- Pantalla 2: Ingreso de PIN (Oculta por defecto) -->
-        <div id="authSection" class="auth-section">
-            <h2 id="userNameDisplay">Usuario</h2>
-            <p class="subtitle">Ingresa tu PIN de seguridad</p>
+        <!-- PANTALLA 2: Ingreso de PIN -->
+        <div id="authSection" class="screen">
+            <div class="header">
+                <h2 id="userNameDisplay">Usuario</h2>
+                <p class="subtitle">Ingresa tu PIN de seguridad</p>
+            </div>
+            
             <div class="form-group">
                 <input type="password" id="userPin" placeholder="****" maxlength="4" inputmode="numeric">
             </div>
+            
+            <!-- Aquí solo aparecerán los mensajes de ERROR -->
+            <div id="feedbackMessage" class="feedback-message"></div>
+
             <div class="auth-actions">
                 <button class="btn-secondary" onclick="goBack()">Cancelar</button>
                 <button class="btn-primary" onclick="verifyPin()">Entrar</button>
             </div>
         </div>
+
+        <!-- PANTALLA 3: El interior de la aplicación (Menú Principal) -->
+        <div id="mainApp" class="screen">
+            <div class="header">
+                <h2>Menú Principal</h2>
+                <p class="subtitle" id="welcomeUserText">Cargando...</p>
+            </div>
+            
+            <p style="color: var(--text-gray); font-size: 0.9rem; margin-bottom: 30px;">
+                ¡Has entrado con éxito! Aquí construiremos las opciones de la cafetería.
+            </p>
+
+            <div class="auth-actions">
+                <button class="btn-secondary" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+        
     </div>
 
     <script type="module" src="script.js"></script>
