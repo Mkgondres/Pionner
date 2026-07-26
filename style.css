@@ -1,25 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap');
 
 :root {
-    --primary-color: #D97736; /* Tono cálido caramelo/pan */
-    --primary-hover: #BF652E;
-    --secondary-color: #3E2723; /* Tono café oscuro */
-    --bg-color: #FCF9F2; /* Fondo crema muy suave */
-    --card-bg: #FFFFFF;
-    --text-main: #333333;
-    --text-light: #888888;
+    --bg-body: #F4F4F5; /* Gris muy claro para el fondo exterior */
+    --bg-card: #FFFFFF; /* Blanco puro para la caja principal */
+    --text-black: #09090B;
+    --text-gray: #71717A;
+    --color-green: #10B981; /* Verde moderno */
+    --color-green-hover: #059669;
+    --color-error: #EF4444; /* Rojo para errores */
+    --border-color: #E4E4E7;
 }
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Inter', sans-serif;
 }
 
 body {
-    background-color: var(--bg-color);
-    color: var(--text-main);
+    background-color: var(--bg-body);
+    color: var(--text-black);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -28,41 +29,53 @@ body {
 }
 
 .app-container {
-    background-color: var(--card-bg);
+    background-color: var(--bg-card);
     width: 100%;
-    max-width: 400px;
+    max-width: 380px;
     padding: 40px 30px;
-    border-radius: 24px;
-    box-shadow: 0 12px 35px rgba(62, 39, 35, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--border-color);
     text-align: center;
 }
 
-.app-header {
-    margin-bottom: 35px;
+/* Control de las pantallas */
+.screen {
+    display: none;
+    animation: fadeIn 0.3s ease-out forwards;
 }
 
-.app-header h1 {
-    color: var(--secondary-color);
+.screen.active {
+    display: block;
+}
+
+.header {
+    margin-bottom: 30px;
+}
+
+.header h1 {
     font-size: 2.2rem;
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: -1px;
+    text-transform: uppercase;
+    color: var(--text-black);
+}
+
+.header h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
     letter-spacing: -0.5px;
+    color: var(--text-black);
 }
 
 .subtitle {
-    color: var(--text-light);
-    font-size: 0.95rem;
+    color: var(--text-gray);
+    font-size: 0.9rem;
+    margin-top: 6px;
     font-weight: 400;
-    margin-top: 5px;
 }
 
-h2, h3 {
-    color: var(--secondary-color);
-    font-size: 1.1rem;
-    margin-bottom: 20px;
-    font-weight: 600;
-}
-
-/* Sección de Botones de Nombres */
+/* Botones de Usuarios (Estilo Minimalista) */
 .roles-grid {
     display: flex;
     flex-direction: column;
@@ -70,66 +83,80 @@ h2, h3 {
 }
 
 .btn-role {
-    background-color: var(--card-bg);
-    color: var(--text-main);
-    border: 2px solid #F0E6D2;
+    background-color: var(--bg-card);
+    color: var(--text-black);
+    border: 1px solid var(--border-color);
     padding: 16px;
-    border-radius: 14px;
-    font-size: 1.05rem;
+    border-radius: 10px;
+    font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.btn-role:hover, .btn-role:active {
-    border-color: var(--primary-color);
-    background-color: #FFF9F5;
-    color: var(--primary-color);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(217, 119, 54, 0.15);
+.btn-role:hover {
+    border-color: var(--text-black);
+    background-color: var(--text-black);
+    color: #FFFFFF;
 }
 
-/* Sección de Contraseña */
-.auth-section {
-    display: none;
-    animation: fadeIn 0.4s ease forwards;
-}
-
-.auth-section.active {
-    display: block;
-}
-
+/* Input del PIN */
 .form-group {
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 }
 
 #userPin {
     width: 100%;
-    padding: 15px;
-    font-size: 1.8rem;
+    padding: 16px;
+    font-size: 2rem;
     text-align: center;
     letter-spacing: 12px;
-    border: 2px solid #F0E6D2;
-    border-radius: 14px;
-    color: var(--secondary-color);
-    background-color: #FCF9F2;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-black);
+    background-color: #FAFAFA;
     transition: all 0.3s ease;
 }
 
 #userPin:focus {
     outline: none;
-    border-color: var(--primary-color);
-    background-color: var(--card-bg);
-    box-shadow: 0 0 0 4px rgba(217, 119, 54, 0.1);
+    border-color: var(--color-green);
+    background-color: var(--bg-card);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 #userPin::placeholder {
     letter-spacing: normal;
-    color: #CCCCCC;
+    color: #D4D4D8;
     font-size: 1.2rem;
     transform: translateY(-4px);
 }
 
+/* Mensajes integrados (Reemplazan al alert) */
+.feedback-message {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: none; /* Oculto por defecto */
+}
+
+.feedback-message.error {
+    display: block;
+    background-color: #FEF2F2;
+    color: var(--color-error);
+    border: 1px solid #FECACA;
+}
+
+.feedback-message.success {
+    display: block;
+    background-color: #ECFDF5;
+    color: var(--color-green);
+    border: 1px solid #A7F3D0;
+}
+
+/* Botones de acción */
 .auth-actions {
     display: flex;
     gap: 12px;
@@ -137,37 +164,35 @@ h2, h3 {
 
 .btn-primary, .btn-secondary {
     flex: 1;
-    padding: 16px;
+    padding: 14px;
     border: none;
-    border-radius: 14px;
-    font-size: 1rem;
+    border-radius: 10px;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .btn-primary {
-    background-color: var(--primary-color);
+    background-color: var(--color-green);
     color: white;
 }
 
-.btn-primary:hover, .btn-primary:active {
-    background-color: var(--primary-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(217, 119, 54, 0.25);
+.btn-primary:hover {
+    background-color: var(--color-green-hover);
 }
 
 .btn-secondary {
-    background-color: #F5F5F5;
-    color: var(--text-light);
+    background-color: transparent;
+    color: var(--text-black);
+    border: 1px solid var(--border-color);
 }
 
-.btn-secondary:hover, .btn-secondary:active {
-    background-color: #E8E8E8;
-    color: var(--text-main);
+.btn-secondary:hover {
+    background-color: #F4F4F5;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
