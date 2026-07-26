@@ -1,1 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importador Masivo - Pionner</title>
+    <!-- Librerías de Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f4f4f5; }
+        .container { background: white; max-width: 500px; margin: auto; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        button { background-color: #10B981; color: white; padding: 15px 30px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #059669; }
+        #mensaje { margin-top: 20px; font-weight: bold; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Importador Pionner</h1>
+        <p>Sube todo el inventario real a Firebase con un solo toque.</p>
+        <button id="btnImportar">Subir Productos</button>
+        <div id="mensaje"></div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN DE FIREBASE (Reemplaza con tus datos reales)
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_AUTH_DOMAIN",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // LISTA COMPLETA DE PRODUCTOS
+        const productos = [
+            // General / Varios
+            { nombre: "Tortica", categoria: "General", precioCompra: 40, precioVenta: 60 },
+            { nombre: "Pasteles", categoria: "General", precioCompra: 70, precioVenta: 90 },
+            { nombre: "Pan Suave", categoria: "General", precioCompra: 220, precioVenta: 260 },
+            { nombre: "Sal 1lb", categoria: "General", precioCompra: 200, precioVenta: 250 },
+            { nombre: "Sal 1kg", categoria: "General", precioCompra: 400, precioVenta: 500 },
+
+            // Confituras y Snacks
+            { nombre: "Caramelo Largo", categoria: "Confituras", precioCompra: 17, precioVenta: 30 },
+            { nombre: "Chupa Chupa", categoria: "Confituras", precioCompra: 48, precioVenta: 60 },
+            { nombre: "Bombones", categoria: "Confituras", precioCompra: 42, precioVenta: 60 },
+            { nombre: "Huevito", categoria: "Confituras", precioCompra: 95, precioVenta: 125 },
+            { nombre: "Menta Plus", categoria: "Confituras", precioCompra: 100, precioVenta: 130 },
+            { nombre: "Peter", categoria: "Confituras", precioCompra: 90, precioVenta: 160 },
+            { nombre: "Cono", categoria: "Confituras", precioCompra: 130, precioVenta: 170 },
+            { nombre: "Huevo Sorpresa", categoria: "Confituras", precioCompra: 180, precioVenta: 220 },
+            { nombre: "Maní", categoria: "Confituras", precioCompra: 220, precioVenta: 280 },
+            { nombre: "Galleta Bro", categoria: "Confituras", precioCompra: 45, precioVenta: 85 },
+            { nombre: "Galleta Brinki", categoria: "Confituras", precioCompra: 60, precioVenta: 90 },
+            { nombre: "Galleta Sovio", categoria: "Confituras", precioCompra: 45, precioVenta: 110 },
+            { nombre: "Galleta Funny", categoria: "Confituras", precioCompra: 90, precioVenta: 120 },
+            { nombre: "Galleta Creme", categoria: "Confituras", precioCompra: 80, precioVenta: 120 },
+            { nombre: "Galleta Plambir", categoria: "Confituras", precioCompra: 90, precioVenta: 120 },
+            { nombre: "Galleta Porkeo Biscuit", categoria: "Confituras", precioCompra: 0, precioVenta: 0 },
+            { nombre: "Galleta Dulceria", categoria: "Confituras", precioCompra: 160, precioVenta: 200 },
+            { nombre: "Galleta Pastella", categoria: "Confituras", precioCompra: 160, precioVenta: 240 },
+            { nombre: "Galleta Fofinho", categoria: "Confituras", precioCompra: 160, precioVenta: 250 },
+            { nombre: "Galleta Soda", categoria: "Confituras", precioCompra: 188, precioVenta: 250 },
+            { nombre: "Galleta Pica Pau", categoria: "Confituras", precioCompra: 170, precioVenta: 280 },
+            { nombre: "Galleta Maria (1)", categoria: "Confituras", precioCompra: 235, precioVenta: 320 },
+            { nombre: "Galleta Maria (2)", categoria: "Confituras", precioCompra: 260, precioVenta: 350 },
+            { nombre: "Sorveto Kilate", categoria: "Confituras", precioCompra: 80, precioVenta: 120 },
+            { nombre: "Sorveto Vistami", categoria: "Confituras", precioCompra: 65, precioVenta: 120 },
+            { nombre: "Sorveto Duande", categoria: "Confituras", precioCompra: 105, precioVenta: 150 },
+            { nombre: "Sorveto Limousine", categoria: "Confituras", precioCompra: 130, precioVenta: 180 },
+            { nombre: "Sorveto Renata", categoria: "Confituras", precioCompra: 310, precioVenta: 370 },
+            { nombre: "Donuts", categoria: "Confituras", precioCompra: 130, precioVenta: 160 },
+            { nombre: "Panque Marmoliado", categoria: "Confituras", precioCompra: 130, precioVenta: 160 },
+            { nombre: "Panque ChocoMosai", categoria: "Confituras", precioCompra: 130, precioVenta: 160 },
+            { nombre: "Panque Marcela", categoria: "Confituras", precioCompra: 130, precioVenta: 170 },
+            { nombre: "Papitas Pequeñas", categoria: "Confituras", precioCompra: 50, precioVenta: 70 },
+            { nombre: "Marraneta", categoria: "Confituras", precioCompra: 192, precioVenta: 250 },
+            { nombre: "Palomitas", categoria: "Confituras", precioCompra: 370, precioVenta: 500 },
+            { nombre: "Potato", categoria: "Confituras", precioCompra: 520, precioVenta: 600 },
+            { nombre: "Tigo Puf", categoria: "Confituras", precioCompra: 390, precioVenta: 600 },
+            { nombre: "Nutella", categoria: "Confituras", precioCompra: 755, precioVenta: 900 },
+
+            // Cigarros
+            { nombre: "Fosforera", categoria: "Cigarros", precioCompra: 100, precioVenta: 150 },
+            { nombre: "H. Upmann Selecto", categoria: "Cigarros", precioCompra: 0, precioVenta: 0 },
+            { nombre: "Cigarro suelto (H. Upmann)", categoria: "Cigarros", precioCompra: 0, precioVenta: 0 },
+            { nombre: "H. Upmann Sin Filtro", categoria: "Cigarros", precioCompra: 0, precioVenta: 0 },
+            { nombre: "H. Upmann Con Filtro", categoria: "Cigarros", precioCompra: 0, precioVenta: 0 },
+            { nombre: "Popular Rojo", categoria: "Cigarros", precioCompra: 460, precioVenta: 580 },
+            { nombre: "Cigarro suelto (Popular Rojo)", categoria: "Cigarros", precioCompra: 23, precioVenta: 30 },
+            { nombre: "Englishman", categoria: "Cigarros", precioCompra: 580, precioVenta: 700 },
+            { nombre: "Cigarro suelto (Englishman)", categoria: "Cigarros", precioCompra: 29, precioVenta: 40 },
+            { nombre: "Flame", categoria: "Cigarros", precioCompra: 460, precioVenta: 600 },
+            { nombre: "Cigarro suelto (Flame)", categoria: "Cigarros", precioCompra: 23, precioVenta: 35 },
+
+            // Bebidas
+            { nombre: "Refresco de Paquete", categoria: "Bebidas", precioCompra: 23, precioVenta: 50 },
+            { nombre: "Refresco de Lata", categoria: "Bebidas", precioCompra: 300, precioVenta: 340 },
+            { nombre: "Refr Pomo C. Montero", categoria: "Bebidas", precioCompra: 785, precioVenta: 900 },
+            { nombre: "Refr Pomo Keen", categoria: "Bebidas", precioCompra: 760, precioVenta: 850 },
+            { nombre: "Yogurt", categoria: "Bebidas", precioCompra: 0, precioVenta: 0 },
+            { nombre: "Nectar Cajita", categoria: "Bebidas", precioCompra: 205, precioVenta: 240 },
+            { nombre: "Nectar Lata", categoria: "Bebidas", precioCompra: 400, precioVenta: 440 },
+            { nombre: "Malta Guajira", categoria: "Bebidas", precioCompra: 360, precioVenta: 400 },
+            { nombre: "Malta Belga", categoria: "Bebidas", precioCompra: 370, precioVenta: 420 },
+            { nombre: "Malta Unlaguer", categoria: "Bebidas", precioCompra: 370, precioVenta: 430 },
+            { nombre: "Malta 1830", categoria: "Bebidas", precioCompra: 370, precioVenta: 430 },
+            { nombre: "Energizante Black Devil", categoria: "Bebidas", precioCompra: 320, precioVenta: 380 },
+            { nombre: "Energizante 5 Shot", categoria: "Bebidas", precioCompra: 0, precioVenta: 0 },
+            { nombre: "Energizante c/ Vodka", categoria: "Bebidas", precioCompra: 420, precioVenta: 500 },
+            { nombre: "Shaka", categoria: "Bebidas", precioCompra: 420, precioVenta: 520 },
+            { nombre: "Cerveza 3 Caballo", categoria: "Bebidas", precioCompra: 360, precioVenta: 400 },
+            { nombre: "Cerveza Chacal", categoria: "Bebidas", precioCompra: 360, precioVenta: 400 },
+            { nombre: "Cerveza Brewstar", categoria: "Bebidas", precioCompra: 320, precioVenta: 400 },
+            { nombre: "Cerveza Bucanero", categoria: "Bebidas", precioCompra: 390, precioVenta: 400 },
+            { nombre: "Vino Moscatel", categoria: "Bebidas", precioCompra: 400, precioVenta: 500 },
+
+            // Mercado
+            { nombre: "Jaba", categoria: "Mercado", precioCompra: 7.5, precioVenta: 15 },
+            { nombre: "Pastilla de Pollo", categoria: "Mercado", precioCompra: 20, precioVenta: 40 },
+            { nombre: "Azafrán", categoria: "Mercado", precioCompra: 30, precioVenta: 60 },
+            { nombre: "Sazón Dubai", categoria: "Mercado", precioCompra: 40, precioVenta: 75 },
+            { nombre: "Sazón Iberia", categoria: "Mercado", precioCompra: 45, precioVenta: 75 },
+            { nombre: "Sazón c/ Pollo", categoria: "Mercado", precioCompra: 40, precioVenta: 75 },
+            { nombre: "Sazón Maggi Completo", categoria: "Mercado", precioCompra: 45, precioVenta: 75 },
+            { nombre: "Pomo de Condimento", categoria: "Mercado", precioCompra: 1000, precioVenta: 1100 },
+            { nombre: "Café Bryderk", categoria: "Mercado", precioCompra: 1450, precioVenta: 1800 },
+            { nombre: "Café Santa Bárbara", categoria: "Mercado", precioCompra: 900, precioVenta: 1900 },
+            { nombre: "Café Ziva", categoria: "Mercado", precioCompra: 1700, precioVenta: 2000 },
+            { nombre: "Café Expreso", categoria: "Mercado", precioCompra: 0, precioVenta: 0 },
+            { nombre: "Mantequilla Pequeña", categoria: "Mercado", precioCompra: 50, precioVenta: 40 },
+            { nombre: "Mantequilla Pote", categoria: "Mercado", precioCompra: 520, precioVenta: 600 },
+            { nombre: "Mayonesa Zer", categoria: "Mercado", precioCompra: 450, precioVenta: 750 },
+            { nombre: "Mayonesa Tradicional", categoria: "Mercado", precioCompra: 890, precioVenta: 1000 },
+            { nombre: "Ketchup", categoria: "Mercado", precioCompra: 545, precioVenta: 650 },
+            { nombre: "Pasta de Tomate", categoria: "Mercado", precioCompra: 470, precioVenta: 580 },
+            { nombre: "Natilla", categoria: "Mercado", precioCompra: 190, precioVenta: 210 },
+            { nombre: "Gelatina", categoria: "Mercado", precioCompra: 200, precioVenta: 320 },
+            { nombre: "Maicena", categoria: "Mercado", precioCompra: 600, precioVenta: 700 },
+            { nombre: "Leche Condensada", categoria: "Mercado", precioCompra: 640, precioVenta: 720 },
+            { nombre: "Fanguito", categoria: "Mercado", precioCompra: 650, precioVenta: 780 },
+            { nombre: "Barra de Guayaba", categoria: "Mercado", precioCompra: 220, precioVenta: 280 },
+            { nombre: "Sopa", categoria: "Mercado", precioCompra: 140, precioVenta: 240 },
+            { nombre: "Espaguetis", categoria: "Mercado", precioCompra: 240, precioVenta: 340 },
+            { nombre: "Codito", categoria: "Mercado", precioCompra: 290, precioVenta: 380 },
+            { nombre: "Arroz", categoria: "Mercado", precioCompra: 640, precioVenta: 830 },
+            { nombre: "Frijoles", categoria: "Mercado", precioCompra: 680, precioVenta: 850 },
+            { nombre: "Aceituna", categoria: "Mercado", precioCompra: 400, precioVenta: 500 },
+            { nombre: "Atún", categoria: "Mercado", precioCompra: 400, precioVenta: 560 },
+            { nombre: "Span de Cerdo", categoria: "Mercado", precioCompra: 680, precioVenta: 800 },
+            { nombre: "Span de Res", categoria: "Mercado", precioCompra: 680, precioVenta: 850 },
+            { nombre: "Vinagre", categoria: "Mercado", precioCompra: 230, precioVenta: 330 },
+            { nombre: "Vino Seco", categoria: "Mercado", precioCompra: 230, precioVenta: 330 },
+            { nombre: "Aceite", categoria: "Mercado", precioCompra: 0, precioVenta: 0 },
+            { nombre: "Hamburguesa", categoria: "Mercado", precioCompra: 550, precioVenta: 630 },
+            { nombre: "Chorizo de Pollo", categoria: "Mercado", precioCompra: 800, precioVenta: 950 },
+
+            // Aseo
+            { nombre: "Máquina de Afeitar", categoria: "Aseo", precioCompra: 70, precioVenta: 120 },
+            { nombre: "Papel Higiénico", categoria: "Aseo", precioCompra: 120, precioVenta: 170 },
+            { nombre: "Cepillo Dental", categoria: "Aseo", precioCompra: 100, precioVenta: 150 },
+            { nombre: "Pasta Dental", categoria: "Aseo", precioCompra: 290, precioVenta: 400 },
+            { nombre: "Jabón de Baño", categoria: "Aseo", precioCompra: 210, precioVenta: 250 },
+            { nombre: "Jabón de Lavar", categoria: "Aseo", precioCompra: 240, precioVenta: 290 },
+            { nombre: "Detergente 500gr", categoria: "Aseo", precioCompra: 290, precioVenta: 450 },
+            { nombre: "Detergente Liq 300ml", categoria: "Aseo", precioCompra: 250, precioVenta: 350 },
+            { nombre: "Detergente Liq 1Lt", categoria: "Aseo", precioCompra: 300, precioVenta: 550 },
+            { nombre: "Detergente Liq 750ml", categoria: "Aseo", precioCompra: 700, precioVenta: 800 },
+            { nombre: "Mascarilla Pequeña", categoria: "Aseo", precioCompra: 0, precioVenta: 250 },
+            { nombre: "Mascarilla Facial", categoria: "Aseo", precioCompra: 0, precioVenta: 300 },
+            { nombre: "Jaba de Culeros", categoria: "Aseo", precioCompra: 3000, precioVenta: 3500 },
+            { nombre: "Paquete de Culeros", categoria: "Aseo", precioCompra: 6700, precioVenta: 7000 }
+        ];
+
+        document.getElementById("btnImportar").addEventListener("click", async () => {
+            const divMensaje = document.getElementById("mensaje");
+            divMensaje.innerText = "Subiendo productos a Firebase...";
+            divMensaje.style.color = "black";
+            
+            try {
+                for (let i = 0; i < productos.length; i++) {
+                    await db.collection("productos").add(productos[i]);
+                }
+                divMensaje.innerText = "¡Éxito total! Todos los productos ya están en la base de datos.";
+                divMensaje.style.color = "#10B981";
+            } catch (error) {
+                divMensaje.innerText = "Error: " + error.message;
+                divMensaje.style.color = "#EF4444";
+            }
+        });
+    </script>
+</body>
+</html>
 
