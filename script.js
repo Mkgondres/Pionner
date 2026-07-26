@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
-// Reemplaza esto con la configuración que copiamos de Firebase hace un rato
+// Tu configuración de Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAhueHCWyIWibnQCf_8gSH3KP6eliAW5Vk",
   authDomain: "pionner-7c1ef.firebaseapp.com",
@@ -14,43 +14,32 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const roleSection = document.getElementById('roleSection');
-const authSection = document.getElementById('authSection');
-const authTitle = document.getElementById('authTitle');
-const userPinInput = document.getElementById('userPin');
-const btnBack = document.getElementById('btnBack');
-const btnSubmit = document.getElementById('btnSubmit');
-const roleButtons = document.querySelectorAll('.btn-role');
-
 let currentUser = '';
+let currentUserName = '';
 
-// Nombres para mostrar en pantalla
-const userNames = {
-    'yoandri': 'Yoandri', 
-    'dairan': 'Dairan',
-    'mariadelcarmen': 'Maria Del Carmen',
-    'marikarla': 'Marikarla'
-};
+// Función cuando tocas tu nombre
+function selectUser(userId, userName) {
+    currentUser = userId;
+    currentUserName = userName;
+    
+    document.getElementById('userNameDisplay').textContent = '¡Bienvenido/a, ' + userName + '!';
+    document.getElementById('roleSelection').style.display = 'none';
+    document.getElementById('authSection').classList.add('active');
+}
 
-roleButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        currentUser = button.getAttribute('data-user');
-        const personName = userNames[currentUser];
-        
-        authTitle.textContent = '¡Bienvenido/a, ' + personName + '!';
-        roleSection.style.display = 'none';
-        authSection.classList.add('active');
-    });
-});
-
-btnBack.addEventListener('click', () => {
-    userPinInput.value = ''; 
+// Función del botón cancelar
+function goBack() {
+    document.getElementById('userPin').value = ''; 
     currentUser = '';
-    authSection.classList.remove('active');
-    roleSection.style.display = 'block';
-});
+    currentUserName = '';
+    
+    document.getElementById('authSection').classList.remove('active');
+    document.getElementById('roleSelection').style.display = 'flex';
+}
 
-btnSubmit.addEventListener('click', async () => {
+// Función del botón Entrar (Verifica en Firebase)
+async function verifyPin() {
+    const userPinInput = document.getElementById('userPin');
     const pinIngresado = userPinInput.value;
 
     if (pinIngresado === '') {
@@ -58,6 +47,7 @@ btnSubmit.addEventListener('click', async () => {
         return;
     }
 
+    const btnSubmit = document.querySelector('.btn-primary');
     btnSubmit.textContent = 'Verificando...';
     btnSubmit.disabled = true;
 
@@ -69,7 +59,7 @@ btnSubmit.addEventListener('click', async () => {
             const pinReal = docSnap.data().pin;
             
             if (pinIngresado === pinReal) {
-                alert('¡Acceso concedido, ' + userNames[currentUser] + '!');
+                alert('¡Acceso concedido, ' + currentUserName + '!');
             } else {
                 alert('PIN incorrecto. Por favor, inténtelo de nuevo.');
                 userPinInput.value = '';
@@ -84,7 +74,9 @@ btnSubmit.addEventListener('click', async () => {
 
     btnSubmit.textContent = 'Entrar';
     btnSubmit.disabled = false;
-});
+}
+
+// Esto conecta las funciones con los botones del HTML
 window.selectUser = selectUser;
 window.goBack = goBack;
 window.verifyPin = verifyPin;
