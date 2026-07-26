@@ -78,32 +78,74 @@
                 <button class="btn-secondary" onclick="logout()">Cerrar Sesión</button>
             </div>
         </div>
-        <!-- PANTALLA 4: Cuadre de Turno (La Tabla Interactiva) -->
+        
+                <!-- PANTALLA 4: Cuadre de Turno (Tabla + Cierre Financiero Completo) -->
         <div id="cuadreSection" class="screen">
             <div class="header">
                 <h2>Cuadre de Turno</h2>
-                <p class="subtitle" id="turnoSubtittle">Calculando turno...</p>
+                <p class="subtitle" id="turnoSubtittle">Inventario y Cierre Financiero</p>
             </div>
             
-            <!-- Contenedor donde cargaremos la lista de productos dinámicamente desde Firebase -->
-            <div id="listaProductosContainer" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; text-align: left;">
-                <p style="text-align: center; color: var(--text-gray);">Cargando productos de la base de datos...</p>
+            <!-- Tabla de productos con scroll horizontal -->
+            <div style="width: 100%; overflow-x: auto; max-height: 380px; overflow-y: auto; margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <div id="listaProductosContainer" style="text-align: left; min-width: 800px;">
+                    <p style="text-align: center; color: var(--text-gray); padding: 20px;">Cargando inventario...</p>
+                </div>
             </div>
 
-            <!-- Resumen de Totales y Gastos -->
-            <div class="cuadre-resumen" style="text-align: left; background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <p><strong>Total Venta Esperada:</strong> <span id="totalVentaCalculado">0</span> CUP</p>
-                <div style="margin-top: 10px;">
-                    <label style="font-size: 14px; font-weight: bold;">Gastos del Turno (CUP):</label>
-                    <input type="number" id="gastosTurno" placeholder="0" style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #d1d5db; border-radius: 6px;">
+            <!-- SECCIÓN DE CIERRE FINANCIERO -->
+            <div style="text-align: left; background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e5e7eb;">
+                <h3 style="font-size: 16px; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">Cierre de Caja y Efectivo</h3>
+                
+                <!-- Dinero en Efectivo -->
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 14px; font-weight: bold; display: block; margin-bottom: 4px;">Dinero en Efectivo (Caja):</label>
+                    <input type="number" id="efectivoCaja" placeholder="0" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
+                </div>
+
+                <!-- Transferencias Dinámicas -->
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 14px; font-weight: bold; display: block; margin-bottom: 4px;">Transferencias:</label>
+                    <div id="transferenciasContainer"></div>
+                    <button type="button" onclick="agregarTransferencia()" style="background: none; border: none; color: #10B981; font-weight: bold; cursor: pointer; font-size: 13px; margin-top: 4px;">+ Añadir Transferencia</button>
+                </div>
+
+                <!-- Gastos Dinámicos -->
+                <div style="margin-bottom: 12px;">
+                    <label style="font-size: 14px; font-weight: bold; display: block; margin-bottom: 4px;">Gastos del Turno:</label>
+                    <div id="gastosContainer"></div>
+                    <button type="button" onclick="agregarGasto()" style="background: none; border: none; color: #10B981; font-weight: bold; cursor: pointer; font-size: 13px; margin-top: 4px;">+ Añadir Gasto</button>
+                </div>
+
+                <!-- Salarios Dinámicos -->
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 14px; font-weight: bold; display: block; margin-bottom: 4px;">Salarios Pagados:</label>
+                    <div id="salariosContainer"></div>
+                    <button type="button" onclick="agregarSalario()" style="background: none; border: none; color: #10B981; font-weight: bold; cursor: pointer; font-size: 13px; margin-top: 4px;">+ Añadir Persona</button>
+                </div>
+
+                <!-- Resumen de Resultados y Comparativa Automática -->
+                <div style="background: #ffffff; padding: 15px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 14px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span>Venta Total Esperada:</span>
+                        <strong><span id="lblTotalVenta">0</span> CUP</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px; color: #4b5563;">
+                        <span>Total Final (Venta - Transf. - Gastos - Salarios):</span>
+                        <strong><span id="lblTotalFinalCalculado">0</span> CUP</strong>
+                    </div>
+                    <div style="border-top: 1px dashed #e5e7eb; margin-top: 10px; padding-top: 10px; text-align: center;">
+                        <span id="lblResultadoDiferencia" style="font-weight: bold; font-size: 15px;">Realiza el conteo para ver la comparativa...</span>
+                    </div>
                 </div>
             </div>
 
             <div class="auth-actions">
-                <button class="btn-secondary" onclick="cancelarCuadre()">Cancelar</button>
+                <button class="btn-secondary" onclick="cancelarCuadre()">Volver</button>
                 <button class="btn-primary" onclick="guardarCuadreFinal()">Guardar Cuadre</button>
             </div>
         </div>
+
 
         
     </div>
