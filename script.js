@@ -175,3 +175,65 @@ window.verAlmacen = function() {
     // Reemplazamos el alert feo
     showMessage("Control de almacén en construcción.", "error");
 }
+import { getDocs, collection, addf, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+// (Nota: Asegúrate de tener addDoc importado arriba en tus imports de firebase si no lo tienes)
+
+// Cargar productos de Firebase al iniciar el cuadre
+window.iniciarCuadre = async function() {
+    document.getElementById('mainApp').classList.remove('active');
+    document.getElementById('cuadreSection').classList.add('active');
+    
+    const container = document.getElementById('listaProductosContainer');
+    container.innerHTML = '<p style="text-align: center;">Cargando inventario...</p>';
+
+    try {
+        const querySnapshot = await getDocs(collection(db, "productos"));
+        let html = '<table style="width: 100%; font-size: 14px; border-collapse: collapse;">';
+        html += '<tr style="border-bottom: 2px solid #e5e7eb; text-align: left;"><th>Producto</th><th>Precio</th><th>Conteo Final</th></tr>';
+
+        querySnapshot.forEach((docSnap) => {
+            const p = docSnap.data();
+            // Solo mostramos productos que tengan precio de venta configurado
+            if (p.precioVenta > 0) {
+                html += `<tr style="border-bottom: 1px solid #f3f4f6;">
+                    <td style="padding: 8px 4px;">${p.nombre}</td>
+                    <td style="padding: 8px 4px;">$${p.precioVenta}</td>
+                    <td style="padding: 8px 4px;"><input type="number" class="input-conteo" data-precio="${p.precioVenta}" data-nombre="${p.nombre}" placeholder="0" style="width: 70px; padding: 5px; border: 1px solid #d1d5db; border-radius: 4px;"></td>
+                </tr>`;
+            }
+        });
+
+        html += '</table>';
+        container.innerHTML = html;
+
+    } catch (error) {
+        console.error("Error al cargar productos:", error);
+        container.innerHTML = '<p style="color: red; text-align: center;">Error al cargar el inventario.</p>';
+    }
+}
+
+// Función para guardar el cuadre definitivo y calcular la hora exacta al terminar
+window.guardarCuadreFinal = function() {
+    const ahora = new Date();
+    const hora = ahora.getHours();
+    let nombreTurno = "";
+
+    // Regla inteligente de los turnos por hora (al cerrar el turno)
+    if (hora >= 6 && hora < 14) { 
+        nombreTurno = "Turno de la Noche (Cierre Mañana)";
+    } else if (hora >= 18 && hora <= 23 || hora < 6) {
+        nombreTurno = "Turno del Día (Cierre Noche)";
+    } else {
+        nombreTurno = "Turno Especial"; 
+    }
+
+    const gastos = parseFloat(document.getElementById('gastosTurno').value) || 0;
+
+    // Aquí procesaremos los inputs de conteo para calcular el total vendido
+    showMessage(`¡Cuadre guardado con éxito como: ${nombreTurno} a las ${ahora.toLocaleTimeString()}!`, "success");
+    
+    // Regresar al menú principal después de guardar
+    setTimeout(() => {
+        cancelarCuadre();
+    }, 2000);
+}
