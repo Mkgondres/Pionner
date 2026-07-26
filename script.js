@@ -86,7 +86,10 @@ async function verifyPin() {
                 // PIN CORRECTO: Entra directo a la aplicación sin mensajes
                 document.getElementById('authSection').classList.remove('active');
                 document.getElementById('mainApp').classList.add('active');
-                document.getElementById('welcomeUserText').textContent = 'Usuario activo: ' + currentUserName;
+                
+                // 👉 AQUÍ ESTÁ LA LÍNEA MÁGICA QUE FALTABA 👈
+                // Esto le avisa al menú si debe encender el botón verde o los ajustes
+                configurarPantallaPrincipal(currentUser, currentUserName);
                 
             } else {
                 // PIN INCORRECTO: Muestra el mensaje de error integrado
@@ -113,11 +116,12 @@ window.selectUser = selectUser;
 window.goBack = goBack;
 window.logout = logout;
 window.verifyPin = verifyPin;
+
 // --- LÓGICA DEL MENÚ PRINCIPAL ---
 
 // Esta función configura qué botones ve cada usuario
 window.configurarPantallaPrincipal = function(userId, userName) {
-    document.getElementById('welcomeUserText').innerText = `Hola, ${userName}`;
+    document.getElementById('welcomeUserText').innerText = `Usuario activo: ${userName}`;
     
     const btnCuadre = document.getElementById('btnIniciarCuadre');
     const btnAjustes = document.getElementById('btnAjustesMenu');
