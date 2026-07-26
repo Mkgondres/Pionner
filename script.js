@@ -85,3 +85,6 @@ btnSubmit.addEventListener('click', async () => {
     btnSubmit.textContent = 'Entrar';
     btnSubmit.disabled = false;
 });
+window.selectUser = selectUser;
+window.goBack = goBack;
+window.verifyPin = verifyPin;
