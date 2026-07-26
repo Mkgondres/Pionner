@@ -137,34 +137,41 @@ window.configurarPantallaPrincipal = function(userId, userName) {
     }
 }
 
-// Lógica inteligente de los turnos por hora
+// --- LÓGICA DE LAS PANTALLAS ---
+
+// Lógica para iniciar el cuadre
 window.iniciarCuadre = function() {
-    const ahora = new Date();
-    const hora = ahora.getHours();
-    let nombreTurno = "";
-
-    // Si es por la mañana (ej. entre 6:00 AM y 2:00 PM), está cerrando la madrugada
-    if (hora >= 6 && hora < 14) { 
-        nombreTurno = "Turno de la Noche";
-    } 
-    // Si es por la tarde/noche (ej. entre 6:00 PM y 11:59 PM), está cerrando el día
-    else if (hora >= 18 && hora <= 23) {
-        nombreTurno = "Turno del Día";
-    } 
-    // Si lo hace a una hora inusual
-    else {
-        nombreTurno = "Turno Especial"; 
-    }
-
-    alert(`Has iniciado un nuevo cuadre.\nSe registrará como: ${nombreTurno}\nHora exacta: ${ahora.toLocaleTimeString()}`);
+    // 1. Ocultamos el menú principal
+    document.getElementById('mainApp').classList.remove('active');
     
-    // Aquí pondremos el código para abrir la pantalla de la tabla con los productos
+    // 2. Mostramos la sección donde estará la tabla de productos (que crearemos en el HTML)
+    const seccionCuadre = document.getElementById('cuadreSection');
+    
+    if (seccionCuadre) {
+        seccionCuadre.classList.add('active');
+    } else {
+        // Si aún no has creado el HTML, usamos tu sistema de mensajes en lugar del cartel feo
+        showMessage("Sección de cuadre en construcción.", "error");
+        console.warn("Aviso: Falta crear el div con id='cuadreSection' en el index.html");
+    }
+}
+
+// Función para volver al menú principal desde el cuadre
+window.cancelarCuadre = function() {
+    const seccionCuadre = document.getElementById('cuadreSection');
+    if (seccionCuadre) {
+        seccionCuadre.classList.remove('active');
+    }
+    document.getElementById('mainApp').classList.add('active');
+    clearMessage();
 }
 
 window.verHistorial = function() {
-    alert("Revisando la base de datos... Aún no hay cuadres registrados.");
+    // Reemplazamos el alert feo
+    showMessage("Historial en construcción. Aún no hay cuadres.", "error");
 }
 
 window.verAlmacen = function() {
-    alert("Abriendo el Control de Almacén...");
+    // Reemplazamos el alert feo
+    showMessage("Control de almacén en construcción.", "error");
 }
