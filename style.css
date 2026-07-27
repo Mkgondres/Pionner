@@ -1,14 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap');
 
 :root {
-    --bg-body: #F4F4F5; /* Gris muy claro para el fondo exterior */
-    --bg-card: #FFFFFF; /* Blanco puro para la caja principal */
-    --text-black: #09090B;
-    --text-gray: #71717A;
-    --color-green: #10B981; /* Verde moderno */
+    --bg-body: #0F172A; /* Fondo oscuro espacial y elegante para resaltar el glassmorphism */
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --color-green: #10B981;
     --color-green-hover: #059669;
-    --color-error: #EF4444; /* Rojo para errores */
-    --border-color: #E4E4E7;
+    --color-error: #EF4444;
 }
 
 * {
@@ -20,26 +18,23 @@
 
 body {
     background-color: var(--bg-body);
-    color: var(--text-black);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 10px;
     display: flex;
     justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    padding: 20px;
+    align-items: flex-start;
 }
 
+/* Contenedor principal expandido a todo el ancho disponible de la pantalla */
 .app-container {
-    background-color: var(--bg-card);
     width: 100%;
-    max-width: 380px;
-    padding: 40px 30px;
-    border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
-    border: 1px solid var(--border-color);
-    text-align: center;
+    max-width: 100%;
+    padding: 15px 10px;
+    background: transparent;
 }
 
-/* Control de las pantallas */
+/* Control de pantallas */
 .screen {
     display: none;
     animation: fadeIn 0.3s ease-out forwards;
@@ -49,124 +44,130 @@ body {
     display: block;
 }
 
+/* Estilo de Encabezados */
 .header {
-    margin-bottom: 30px;
+    margin-bottom: 20px;
+    text-align: center;
 }
 
 .header h1 {
-    font-size: 2.2rem;
+    font-size: 2rem;
     font-weight: 800;
     letter-spacing: -1px;
     text-transform: uppercase;
-    color: var(--text-black);
+    color: var(--text-primary);
 }
 
 .header h2 {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
     font-weight: 600;
-    letter-spacing: -0.5px;
-    color: var(--text-black);
+    color: var(--text-primary);
 }
 
 .subtitle {
-    color: var(--text-gray);
-    font-size: 0.9rem;
-    margin-top: 6px;
-    font-weight: 400;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 4px;
 }
 
-/* Botones de Usuarios (Estilo Minimalista) */
+/* Botones de Selección de Usuarios (Estilo Glassmorphism / Neomorfismo) */
 .roles-grid {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-.btn-role {
-    background-color: var(--bg-card);
-    color: var(--text-black);
-    border: 1px solid var(--border-color);
+.btn-role, .btn-menu {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 16px;
-    border-radius: 10px;
+    border-radius: 12px;
     font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3), -2px -2px 6px rgba(255, 255, 255, 0.02);
     transition: all 0.2s ease;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
 }
 
-.btn-role:hover {
-    border-color: var(--text-black);
-    background-color: var(--text-black);
-    color: #FFFFFF;
+.btn-role:hover, .btn-menu:hover {
+    border-color: var(--color-green);
+    background: rgba(30, 41, 59, 0.9);
 }
 
 /* Input del PIN */
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
 #userPin {
     width: 100%;
-    padding: 16px;
-    font-size: 2rem;
+    padding: 14px;
+    font-size: 1.8rem;
     text-align: center;
-    letter-spacing: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    color: var(--text-black);
-    background-color: #FAFAFA;
+    letter-spacing: 10px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: var(--text-primary);
+    box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.4);
     transition: all 0.3s ease;
 }
 
 #userPin:focus {
     outline: none;
     border-color: var(--color-green);
-    background-color: var(--bg-card);
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 #userPin::placeholder {
     letter-spacing: normal;
-    color: #D4D4D8;
-    font-size: 1.2rem;
-    transform: translateY(-4px);
+    color: #475569;
+    font-size: 1rem;
 }
 
-/* Mensajes integrados (Reemplazan al alert) */
+/* Mensajes de error o éxito */
 .feedback-message {
     font-size: 0.85rem;
     font-weight: 500;
     padding: 10px;
     border-radius: 8px;
-    margin-bottom: 20px;
-    display: none; /* Oculto por defecto */
+    margin-bottom: 15px;
+    display: none;
 }
 
 .feedback-message.error {
     display: block;
-    background-color: #FEF2F2;
-    color: var(--color-error);
-    border: 1px solid #FECACA;
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #FCA5A5;
+    border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .feedback-message.success {
     display: block;
-    background-color: #ECFDF5;
-    color: var(--color-green);
-    border: 1px solid #A7F3D0;
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #6EE7B7;
+    border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-/* Botones de acción */
+/* Botones de Acción (Primarios y Secundarios) */
 .auth-actions {
     display: flex;
-    gap: 12px;
+    gap: 10px;
+    margin-top: 15px;
 }
 
 .btn-primary, .btn-secondary {
     flex: 1;
     padding: 14px;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
@@ -176,6 +177,7 @@ body {
 .btn-primary {
     background-color: var(--color-green);
     color: white;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
 }
 
 .btn-primary:hover {
@@ -183,64 +185,66 @@ body {
 }
 
 .btn-secondary {
-    background-color: transparent;
-    color: var(--text-black);
-    border: 1px solid var(--border-color);
+    background: rgba(30, 41, 59, 0.7);
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn-secondary:hover {
-    background-color: #F4F4F5;
+    background: rgba(30, 41, 59, 0.9);
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-/* --- ESTILOS DEL MENÚ PRINCIPAL Y CAMPANITA --- */
+/* Campanita de Notificaciones */
 .bell-container {
     position: absolute;
-    top: 0;
-    right: 0;
-    font-size: 24px;
+    top: 10px;
+    right: 10px;
+    font-size: 22px;
     cursor: pointer;
+    background: rgba(30, 41, 59, 0.7);
+    padding: 8px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .badge {
     position: absolute;
-    top: -5px;
-    right: -8px;
-    background-color: #EF4444; /* Rojo para alertas */
+    top: -3px;
+    right: -3px;
+    background-color: var(--color-error);
     color: white;
     border-radius: 50%;
     padding: 2px 6px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: bold;
 }
 
 .dashboard-menu {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    margin-top: 25px;
+    gap: 12px;
+    margin-top: 20px;
 }
 
-.btn-menu {
-    background-color: #ffffff;
-    color: #000000;
-    border: 2px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 18px;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    text-align: left;
-    transition: 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+/* Estilos de tablas y contenedores financieros fluidos */
+table {
+    width: 100%;
+    background: rgba(30, 41, 59, 0.8) !important;
+    color: var(--text-primary);
 }
 
-.btn-menu:hover {
-    border-color: #10B981; /* Verde Pionner */
-    background-color: #f0fdf4;
+th {
+    background: rgba(15, 23, 42, 0.9) !important;
+    color: var(--text-secondary) !important;
+}
+
+td input {
+    background: rgba(15, 23, 42, 0.7) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
