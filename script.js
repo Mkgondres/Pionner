@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { 
     getFirestore, doc, getDoc, getDocs, collection, addDoc, 
-    serverTimestamp, query, where, enableIndexedDbPersistence, updateDoc 
+    serverTimestamp, query, where, enableIndexedDbPersistence, deleteDoc 
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -247,11 +247,17 @@ window.calcularCierreFinanciero = function() {
     }
 }
 
-// Guardar Cuadre Completo y Mostrar Modal Estilizado
+// GUARDAR CUADRE CON CANDADO ANTIDUPLICADOS Y BLOQUEO DE BOTÓN
 window.guardarCuadreFinal = async function() {
+    const btnGuardar = document.querySelector('#cuadreSection .btn-primary');
+    if (btnGuardar) {
+        btnGuardar.disabled = true;
+        btnGuardar.textContent = "Guardando...";
+    }
+
     const ahora = new Date();
     const hora = ahora.getHours();
-    let nombreTurno = (hora >= 6 && hora < 14) ? "Cierre Mañana" : "Cierre Noche";
+    let nombreTurno = (hora >= 6 && hora < 14) ? "Turno de Noche" : "Turno de Día";
 
     let detalle = [];
     document.querySelectorAll('tr[data-index]').forEach(row => {
@@ -276,7 +282,6 @@ window.guardarCuadreFinal = async function() {
         });
     });
 
-    // Recopilar Gastos y Salarios detallados
     let gastosArr = [];
     document.querySelectorAll('#gastosContainer .dynamic-row').forEach(r => {
         const motivo = r.querySelector('.input-gasto-motivo')?.value || "General";
@@ -293,8 +298,13 @@ window.guardarCuadreFinal = async function() {
 
     let transfArr = [];
     document.querySelectorAll('.input-transf').forEach(i => {
-        if(i.value) transfArr.push(parseFloat(i.value));
+        const val = parseFloat(i.value) || 0;
+        if(val > 0) transfArr.push(val);
     });
+
+    const ventaTotalStr = document.getElementById('lblVentaTotal').innerText;
+    const totalFinalStr = document.getElementById('lblFinal').innerText;
+    const efectivoVal = document.getElementById('efectivoCaja').value || 0;
 
     const datos = {
         usuario: currentUserName,
@@ -303,28 +313,49 @@ window.guardarCuadreFinal = async function() {
         timestamp: serverTimestamp(),
         productos: detalle,
         financiero: {
-            efectivo: document.getElementById('efectivoCaja').value || 0,
+            efectivo: efectivoVal,
             transferencias: transfArr,
             gastos: gastosArr,
             salarios: salariosArr,
-            ventaTotal: document.getElementById('lblVentaTotal').innerText,
-            totalFinal: document.getElementById('lblFinal').innerText
-        },
-        leidoNotificacion: false
+            ventaTotal: ventaTotalStr,
+            totalFinal: totalFinalStr
+        }
     };
 
     try {
+        // CANDADO ANTIDUPLICADOS: Verificar si ya existe un cuadre idéntico reciente
+        const qCheck = query(collection(db, "historial_cuadres"), where("usuario", "==", currentUserName), where("turno", "==", nombreTurno));
+        const snapCheck = await getDocs(qCheck);
+        let duplicado = false;
+        
+        snapCheck.forEach(d => {
+            const data = d.data();
+            // Si coincide la venta total y el total final del mismo día, se frena para evitar duplicados por clics múltiples
+            if(data.financiero?.ventaTotal === ventaTotalStr && data.financiero?.totalFinal === totalFinalStr) {
+                duplicado = true;
+            }
+        });
+
+        if(duplicado) {
+            alert("⚠️ Este cuadre ya fue guardado anteriormente con los mismos valores.");
+            if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = "Guardar Cuadre"; }
+            return;
+        }
+
         await addDoc(collection(db, "historial_cuadres"), datos);
         await addDoc(collection(db, "notificaciones"), { 
             leido: false, 
-            msg: `Nuevo cuadre realizado por ${currentUserName} (${nombreTurno})`, 
-            time: serverTimestamp() 
+            msg: `Yoandri envió cuadre nuevo (${nombreTurno} - ${ahora.toLocaleDateString()})`, 
+            time: serverTimestamp(),
+            usuario: currentUserName,
+            turno: nombreTurno
         });
         
-        // Mostrar Modal Estilizado en lugar de alert
         document.getElementById('customModal').style.display = 'flex';
     } catch (e) {
         alert("Error al guardar localmente.");
+    } finally {
+        if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = "Guardar Cuadre"; }
     }
 }
 
@@ -333,7 +364,7 @@ window.cerrarModalCustom = function() {
     cancelarCuadre();
 }
 
-// --- GESTIÓN DE LA CAMPANITA Y NOTIFICACIONES ---
+// --- GESTIÓN DE LA CAMPANITA CON ATAJO ÚNICO Y AUTODESTRUCCIÓN ---
 window.verificarNotificacionesPendientes = async function() {
     try {
         const q = query(collection(db, "notificaciones"), where("leido", "==", false));
@@ -349,34 +380,40 @@ window.verNotificaciones = async function() {
     container.innerHTML = '<p style="color:#94A3B8; text-align:center;">Cargando...</p>';
 
     try {
-        const q = query(collection(db, "notificaciones"));
+        const q = query(collection(db, "notificaciones"), where("leido", "==", false));
         const snap = await getDocs(q);
         let html = '';
         
         snap.forEach(docSnap => {
             const n = docSnap.data();
-            html += `<div style="background:rgba(15,23,42,0.6); padding:10px; border-radius:8px; margin-bottom:8px; border-left:4px solid ${n.leido ? '#64748b' : '#10B981'};">
-                <p style="color:#F8FAFC; font-size:0.9rem; font-weight:500;">${n.msg}</p>
-                <span style="color:#64748b; font-size:0.75rem;">${n.time ? new Date(n.time.seconds * 1000).toLocaleString() : 'Pendiente de sinc.'}</span>
+            html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer; transition:all 0.2s;">
+                <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 ${n.msg}</p>
+                <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver el cuadre y cerrar la alerta</span>
             </div>`;
         });
-        container.innerHTML = html || '<p style="color:#94A3B8; text-align:center;">No hay notificaciones.</p>';
+        container.innerHTML = html || '<p style="color:#94A3B8; text-align:center;">No hay notificaciones pendientes.</p>';
     } catch(e) {
         container.innerHTML = '<p style="color:#EF4444; text-align:center;">Error al cargar.</p>';
     }
 }
 
-window.cerrarModalNotificaciones = async function() {
-    document.getElementById('modalNotificaciones').style.display = 'none';
-    // Marcar como leídas
+// Atajo único: Abre el último cuadre y elimina la notificación para que no se acumule basura
+window.abrirAtajoNotificacion = async function(notifId) {
     try {
-        const q = query(collection(db, "notificaciones"), where("leido", "==", false));
-        const snap = await getDocs(q);
-        snap.forEach(async (d) => {
-            await updateDoc(doc(db, "notificaciones", d.id), { leido: true });
-        });
+        // Borrar notificación inmediatamente (autodestrucción)
+        await deleteDoc(doc(db, "notificaciones", notifId));
+        document.getElementById('modalNotificaciones').style.display = 'none';
         verificarNotificacionesPendientes();
-    } catch(e){}
+
+        // Ir directo al Historial a buscar el último cuadre
+        verHistorial();
+    } catch(e) {
+        alert("Error al procesar el atajo.");
+    }
+}
+
+window.cerrarModalNotificaciones = function() {
+    document.getElementById('modalNotificaciones').style.display = 'none';
 }
 
 // --- HISTORIAL DE CUADRES ---
@@ -399,8 +436,8 @@ window.verHistorial = async function() {
                 </div>
                 <p style="color:#F8FAFC; font-size:0.9rem;">Turno: ${h.turno}</p>
                 <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:0.85rem; color:#cbd5e1;">
-                    <span>Venta: ${h.financiero?.ventaTotal || h.totalVenta}</span>
-                    <span>Final: ${h.financiero?.totalFinal || h.totalFinal}</span>
+                    <span>Venta: ${h.financiero?.ventaTotal}</span>
+                    <span>Final: ${h.financiero?.totalFinal}</span>
                 </div>
             </div>`;
         });
@@ -420,7 +457,7 @@ window.volverAlHistorial = function() {
     document.getElementById('historialSection').classList.add('active');
 }
 
-// Ver Detalle Completo de un Cuadre del Historial (Con Columnas Ocultas Visibles para Administradoras)
+// VER DETALLE COMPLETO CON DESGLOSE FINANCIERO TRANSPARENTE
 window.verDetalleCuadre = async function(id) {
     document.getElementById('historialSection').classList.remove('active');
     document.getElementById('detalleCuadreSection').classList.add('active');
@@ -436,7 +473,7 @@ window.verDetalleCuadre = async function(id) {
             document.getElementById('detalleTituloTurno').innerText = `Turno: ${h.turno}`;
             document.getElementById('detalleSubInfo').innerText = `Responsable: ${h.usuario} (${h.fecha})`;
 
-            let html = '<table style="width:100%; border-collapse:collapse; background:white; color:#0f172a; font-size:12px;">';
+            let html = '<table style="width:100%; border-collapse:collapse; background:white; color:#0f172a; font-size:12px; margin-bottom:15px;">';
             html += '<tr style="background:#1e293b; color:white; text-align:center;">';
             html += '<th style="padding:8px; text-align:left;">PRODUCTO</th><th>INICIO</th><th>ENTRADA</th><th>BAJA</th><th>FINAL</th><th>VENTA</th><th>P. COMPRA</th><th>P. VENTA</th><th>TOTAL VENTA</th><th>GANANCIA U</th><th>GANANCIA T</th>';
             html += '</tr>';
@@ -453,11 +490,49 @@ window.verDetalleCuadre = async function(id) {
             }
             html += '</table>';
 
-            // Añadir resumen financiero abajo
-            html += `<div style="background:#f8fafc; padding:15px; margin-top:15px; border-radius:8px; color:#0f172a; font-size:13px;">`;
-            html += `<p><strong>Efectivo en Caja:</strong> $${h.financiero?.efectivo || 0}</p>`;
-            html += `<p><strong>Venta Total:</strong> ${h.financiero?.ventaTotal || h.totalVenta}</p>`;
-            html += `<p><strong>Total Final:</strong> ${h.financiero?.totalFinal || h.totalFinal}</p>`;
+            // DESGLOSE FINANCIERO DETALLADO Y ORDENADO PARA LA DUEÑA
+            const fin = h.financiero || {};
+            
+            // Procesar transferencias agrupadas
+            let transTexto = "Ninguna";
+            if(fin.transferencias && fin.transferencias.length > 0) {
+                let sumaTrans = fin.transferencias.reduce((a, b) => a + b, 0);
+                transTexto = `(${fin.transferencias.length}) de ${sumaTrans} CUP [${fin.transferencias.join(', ')}]`;
+            }
+
+            html += `<div style="background:#f8fafc; padding:15px; border-radius:8px; color:#0f172a; font-size:13px; border:1px solid #cbd5e1;">`;
+            html += `<h4 style="margin-bottom:10px; border-bottom:1px solid #cbd5e1; padding-bottom:5px; color:#1e293b;">Desglose Financiero del Turno</h4>`;
+            html += `<p style="margin-bottom:6px;"><strong>Venta Total Esperada:</strong> ${fin.ventaTotal || h.totalVenta}</p>`;
+            html += `<p style="margin-bottom:6px;"><strong>Efectivo en Caja:</strong> $${fin.efectivo || 0} CUP</p>`;
+            html += `<p style="margin-bottom:6px;"><strong>Transferencias:</strong> ${transTexto}</p>`;
+
+            // Gastos detallados por motivo
+            html += `<p style="margin-bottom:4px; font-weight:bold; margin-top:8px;">Gastos del Turno:</p>`;
+            if(fin.gastos && fin.gastos.length > 0) {
+                html += `<ul style="margin-left:20px; margin-bottom:6px;">`;
+                fin.gastos.forEach(g => {
+                    html += `<li>${g.motivo}: $${g.monto} CUP</li>`;
+                });
+                html += `</ul>`;
+            } else {
+                html += `<p style="margin-left:15px; color:#64748b; margin-bottom:6px;">Ninguno</p>`;
+            }
+
+            // Salarios detallados por persona
+            html += `<p style="margin-bottom:4px; font-weight:bold; margin-top:8px;">Salarios Pagados:</p>`;
+            if(fin.salarios && fin.salarios.length > 0) {
+                html += `<ul style="margin-left:20px; margin-bottom:6px;">`;
+                fin.salarios.forEach(s => {
+                    html += `<li>${s.persona}: $${s.monto} CUP</li>`;
+                });
+                html += `</ul>`;
+            } else {
+                html += `<p style="margin-left:15px; color:#64748b; margin-bottom:6px;">Ninguno</p>`;
+            }
+
+            html += `<div style="border-top:1px dashed #cbd5e1; margin-top:10px; padding-top:8px;">`;
+            html += `<p style="font-size:14px;"><strong>Balance Final Calculado:</strong> ${fin.totalFinal || h.totalFinal}</p>`;
+            html += `</div>`;
             html += `</div>`;
 
             container.innerHTML = html;
