@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { 
     getFirestore, doc, getDoc, getDocs, collection, addDoc, 
-    serverTimestamp, query, where, enableIndexedDbPersistence, deleteDoc 
+    serverTimestamp, query, where, enableIndexedDbPersistence, deleteDoc, orderBy, limit 
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -133,12 +133,32 @@ window.iniciarCuadre = async function() {
     const esYoandri = (currentUser === 'yoandri');
 
     try {
+        // 1. Cargar productos desde Firebase
         const querySnapshot = await getDocs(collection(db, "productos"));
         productosMapCache = {};
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             if (data.nombre) productosMapCache[data.nombre.trim()] = data;
         });
+
+        // 2. Buscar el ÚLTIMO cuadre guardado para heredar la columna "Inicio" automáticamente
+        let ultimosValoresFinales = {};
+        try {
+            const histRef = collection(db, "historial_cuadres");
+            const qHist = query(histRef, orderBy("timestamp", "desc"), limit(1));
+            const histSnap = await getDocs(qHist);
+            
+            if (!histSnap.empty) {
+                const ultimoCuadre = histSnap.docs[0].data();
+                if (ultimoCuadre.productos && Array.isArray(ultimoCuadre.productos)) {
+                    ultimoCuadre.productos.forEach(prod => {
+                        ultimosValoresFinales[prod.nombre.trim()] = prod.final;
+                    });
+                }
+            }
+        } catch(err) {
+            console.log("No hay cuadre previo o error al buscar inicio automático:", err);
+        }
 
         let html = '<table><tr><th>PRODUCTO</th><th>INICIO</th><th>ENTRADA</th><th>BAJA</th><th>FINAL</th><th>VENTA</th>';
         if (!esYoandri) html += '<th>PRECIO COMP</th>';
@@ -160,9 +180,21 @@ window.iniciarCuadre = async function() {
             const colorFondo = filaAlternada ? '#f1f5f9' : '#ffffff';
             filaAlternada = !filaAlternada;
 
+            // Verificar si hay valor previo heredado del turno anterior
+            const valorInicioPrevio = ultimosValoresFinales[p.nombre.trim()];
+            const esHeredado = (valorInicioPrevio !== undefined && valorInicioPrevio !== null && valorInicioPrevio !== "");
+
             html += `<tr style="background-color: ${colorFondo};" data-index="${idx}" data-nombre="${p.nombre}">`;
             html += `<td style="text-align: left;">${p.nombre}</td>`;
-            html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            
+            if (esHeredado) {
+                // Bloqueado a partir del segundo cuadre con el final anterior
+                html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px; background-color: #e2e8f0; color: #334155; font-weight: bold;" value="${valorInicioPrevio}" readonly oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            } else {
+                // Editable si es el primer cuadre
+                html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            }
+
             html += `<td><input type="number" class="input-cell input-entrada" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             html += `<td><input type="number" class="input-cell input-baja" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             html += `<td><input type="number" class="input-cell input-final" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
@@ -177,11 +209,28 @@ window.iniciarCuadre = async function() {
             html += `</tr>`;
         });
         container.innerHTML = html + '</table>';
+        
+        // Ejecutar cálculo inicial para poblar totales en cero o heredados
+        document.querySelectorAll('tr[data-index]').forEach(row => {
+            const idx = row.dataset.index;
+            const nom = row.dataset.nombre;
+            const pr = productosMapCache[nom] || { precioVenta: 0, precioCompra: 0 };
+            if(esHeredadoParaFila(row)) {
+                calcularFilaProducto(idx, pr.precioVenta, pr.precioCompra);
+            }
+        });
+
     } catch (e) { console.error(e); }
+}
+
+function esHeredadoParaFila(row) {
+    const inp = row.querySelector('.input-inicio');
+    return inp && inp.readOnly;
 }
 
 window.calcularFilaProducto = function(index, precioVenta, precioCompra) {
     const row = document.querySelector(`tr[data-index="${index}"]`);
+    if (!row) return;
     const inicio = parseFloat(row.querySelector('.input-inicio').value) || 0;
     const entrada = parseFloat(row.querySelector('.input-entrada').value) || 0;
     const baja = parseFloat(row.querySelector('.input-baja').value) || 0;
@@ -260,12 +309,17 @@ window.guardarCuadreFinal = async function() {
     let nombreTurno = (hora >= 6 && hora < 14) ? "Turno de Noche" : "Turno de Día";
 
     let detalle = [];
+    let gananciaBrutaTotal = 0;
+
     document.querySelectorAll('tr[data-index]').forEach(row => {
         const nombre = row.dataset.nombre;
         const pInfo = productosMapCache[nombre];
         const venta = parseFloat(row.querySelector('[id^="venta-"]').innerText) || 0;
         const pVenta = pInfo?.precioVenta || 0;
         const pCompra = pInfo?.precioCompra || 0;
+        const gananciaTItem = venta * (pVenta - pCompra);
+
+        gananciaBrutaTotal += gananciaTItem;
 
         detalle.push({
             nombre,
@@ -278,7 +332,7 @@ window.guardarCuadreFinal = async function() {
             precioVenta: pVenta,
             totalVenta: venta * pVenta,
             gananciaU: pVenta - pCompra,
-            gananciaT: venta * (pVenta - pCompra)
+            gananciaT: gananciaTItem
         });
     });
 
@@ -318,19 +372,18 @@ window.guardarCuadreFinal = async function() {
             gastos: gastosArr,
             salarios: salariosArr,
             ventaTotal: ventaTotalStr,
-            totalFinal: totalFinalStr
+            totalFinal: totalFinalStr,
+            gananciaBruta: gananciaBrutaTotal
         }
     };
 
     try {
-        // CANDADO ANTIDUPLICADOS: Verificar si ya existe un cuadre idéntico reciente
         const qCheck = query(collection(db, "historial_cuadres"), where("usuario", "==", currentUserName), where("turno", "==", nombreTurno));
         const snapCheck = await getDocs(qCheck);
         let duplicado = false;
         
         snapCheck.forEach(d => {
             const data = d.data();
-            // Si coincide la venta total y el total final del mismo día, se frena para evitar duplicados por clics múltiples
             if(data.financiero?.ventaTotal === ventaTotalStr && data.financiero?.totalFinal === totalFinalStr) {
                 duplicado = true;
             }
@@ -397,15 +450,11 @@ window.verNotificaciones = async function() {
     }
 }
 
-// Atajo único: Abre el último cuadre y elimina la notificación para que no se acumule basura
 window.abrirAtajoNotificacion = async function(notifId) {
     try {
-        // Borrar notificación inmediatamente (autodestrucción)
         await deleteDoc(doc(db, "notificaciones", notifId));
         document.getElementById('modalNotificaciones').style.display = 'none';
         verificarNotificacionesPendientes();
-
-        // Ir directo al Historial a buscar el último cuadre
         verHistorial();
     } catch(e) {
         alert("Error al procesar el atajo.");
@@ -457,7 +506,7 @@ window.volverAlHistorial = function() {
     document.getElementById('historialSection').classList.add('active');
 }
 
-// VER DETALLE COMPLETO CON DESGLOSE FINANCIERO TRANSPARENTE
+// VER DETALLE COMPLETO CON DESGLOSE EN 3 PARTES (DATOS, CÁLCULOS, CONCLUSIONES) Y COLUMNAS STICKY
 window.verDetalleCuadre = async function(id) {
     document.getElementById('historialSection').classList.remove('active');
     document.getElementById('detalleCuadreSection').classList.add('active');
@@ -473,9 +522,11 @@ window.verDetalleCuadre = async function(id) {
             document.getElementById('detalleTituloTurno').innerText = `Turno: ${h.turno}`;
             document.getElementById('detalleSubInfo').innerText = `Responsable: ${h.usuario} (${h.fecha})`;
 
-            let html = '<table style="width:100%; border-collapse:collapse; background:white; color:#0f172a; font-size:12px; margin-bottom:15px;">';
-            html += '<tr style="background:#1e293b; color:white; text-align:center;">';
-            html += '<th style="padding:8px; text-align:left;">PRODUCTO</th><th>INICIO</th><th>ENTRADA</th><th>BAJA</th><th>FINAL</th><th>VENTA</th><th>P. COMPRA</th><th>P. VENTA</th><th>TOTAL VENTA</th><th>GANANCIA U</th><th>GANANCIA T</th>';
+            // Tabla con cabeceras Sticky
+            let html = '<div style="max-height: 400px; overflow-y: auto;">';
+            html += '<table style="width:100%; border-collapse:collapse; background:white; color:#0f172a; font-size:12px;">';
+            html += '<tr style="background:#1e293b; color:white; text-align:center; position: sticky; top: 0; z-index: 10;">';
+            html += '<th style="padding:8px; text-align:left; background:#1e293b;">PRODUCTO</th><th style="background:#1e293b;">INICIO</th><th style="background:#1e293b;">ENTRADA</th><th style="background:#1e293b;">BAJA</th><th style="background:#1e293b;">FINAL</th><th style="background:#1e293b;">VENTA</th><th style="background:#1e293b;">P. COMPRA</th><th style="background:#1e293b;">P. VENTA</th><th style="background:#1e293b;">TOTAL VENTA</th><th style="background:#1e293b;">GANANCIA U</th><th style="background:#1e293b;">GANANCIA T</th>';
             html += '</tr>';
 
             if(h.productos && h.productos.length > 0) {
@@ -488,51 +539,106 @@ window.verDetalleCuadre = async function(id) {
                     html += `</tr>`;
                 });
             }
-            html += '</table>';
+            html += '</table></div>';
 
-            // DESGLOSE FINANCIERO DETALLADO Y ORDENADO PARA LA DUEÑA
+            // EXTRACCIÓN DE DATOS PARA LOS CÁLCULOS Y CONCLUSIONES
             const fin = h.financiero || {};
             
-            // Procesar transferencias agrupadas
-            let transTexto = "Ninguna";
-            if(fin.transferencias && fin.transferencias.length > 0) {
-                let sumaTrans = fin.transferencias.reduce((a, b) => a + b, 0);
-                transTexto = `(${fin.transferencias.length}) de ${sumaTrans} CUP [${fin.transferencias.join(', ')}]`;
+            // 1. Venta Total numérica limpia
+            let ventaTotalNum = parseFloat((fin.ventaTotal || "0").replace(/[^0-9.]/g, '')) || 0;
+            let efectivoNum = parseFloat(fin.efectivo || 0) || 0;
+            
+            // 2. Transferencias
+            let transfArr = fin.transferencias || [];
+            let sumaTransf = transfArr.reduce((a, b) => a + b, 0);
+            let transfTexto = transfArr.length > 1 ? `(${transfArr.length}) : ${sumaTransf} CUP` : `${sumaTransf} CUP`;
+
+            // 3. Gastos
+            let gastosArr = fin.gastos || [];
+            let sumaGastos = gastosArr.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+
+            // 4. Salarios
+            let salariosArr = fin.salarios || [];
+            let sumaSalarios = salariosArr.reduce((acc, s) => acc + (parseFloat(s.monto) || 0), 0);
+
+            // 5. Ganancia Bruta (calculada sumando la columna ganancia total)
+            let gananciaBrutaNum = fin.gananciaBruta !== undefined ? fin.gananciaBruta : 0;
+            if (gananciaBrutaNum === 0 && h.productos) {
+                h.productos.forEach(p => { gananciaBrutaNum += (parseFloat(p.gananciaT) || 0); });
             }
 
-            html += `<div style="background:#f8fafc; padding:15px; border-radius:8px; color:#0f172a; font-size:13px; border:1px solid #cbd5e1;">`;
-            html += `<h4 style="margin-bottom:10px; border-bottom:1px solid #cbd5e1; padding-bottom:5px; color:#1e293b;">Desglose Financiero del Turno</h4>`;
-            html += `<p style="margin-bottom:6px;"><strong>Venta Total Esperada:</strong> ${fin.ventaTotal || h.totalVenta}</p>`;
-            html += `<p style="margin-bottom:6px;"><strong>Efectivo en Caja:</strong> $${fin.efectivo || 0} CUP</p>`;
-            html += `<p style="margin-bottom:6px;"><strong>Transferencias:</strong> ${transTexto}</p>`;
-
-            // Gastos detallados por motivo
-            html += `<p style="margin-bottom:4px; font-weight:bold; margin-top:8px;">Gastos del Turno:</p>`;
-            if(fin.gastos && fin.gastos.length > 0) {
-                html += `<ul style="margin-left:20px; margin-bottom:6px;">`;
-                fin.gastos.forEach(g => {
-                    html += `<li>${g.motivo}: $${g.monto} CUP</li>`;
-                });
+            // --- SECCIÓN 1: DATOS ---
+            html += `<div style="background:#f8fafc; padding:15px; margin-top:15px; border-radius:8px; color:#0f172a; font-size:13px; border:1px solid #cbd5e1;">`;
+            html += `<h4 style="margin-bottom:10px; border-bottom:2px solid #1e293b; padding-bottom:5px; color:#1e293b; font-size:15px;">Desglose Financiero</h4>`;
+            html += `<h5 style="color:#0f766e; margin-bottom:6px; font-size:13px; text-transform:uppercase;">Datos:</h5>`;
+            html += `<ul style="margin-left:15px; margin-bottom:10px; list-style-type:disc;">`;
+            html += `<li><strong>Venta total:</strong> ${ventaTotalNum} CUP</li>`;
+            html += `<li><strong>Efectivo en caja:</strong> ${efectivoNum} CUP</li>`;
+            html += `<li><strong>Transferencias${transfArr.length > 1 ? ' ' + (transfArr.length > 1 ? '('+transfArr.length+')' : '') : ''} (-):</strong> ${sumaTransf} CUP</li>`;
+            
+            html += `<li><strong>Gastos del turno:</strong>`;
+            if(gastosArr.length > 0) {
+                html += `<ul style="margin-left:20px; margin-top:3px;">`;
+                gastosArr.forEach(g => { html += `<li>Motivo: ${g.motivo} - ${g.monto} CUP</li>`; });
                 html += `</ul>`;
             } else {
-                html += `<p style="margin-left:15px; color:#64748b; margin-bottom:6px;">Ninguno</p>`;
+                html += ` Ninguno`;
             }
+            html += `</li>`;
 
-            // Salarios detallados por persona
-            html += `<p style="margin-bottom:4px; font-weight:bold; margin-top:8px;">Salarios Pagados:</p>`;
-            if(fin.salarios && fin.salarios.length > 0) {
-                html += `<ul style="margin-left:20px; margin-bottom:6px;">`;
-                fin.salarios.forEach(s => {
-                    html += `<li>${s.persona}: $${s.monto} CUP</li>`;
-                });
+            html += `<li style="margin-top:5px;"><strong>Salarios pagados:</strong>`;
+            if(salariosArr.length > 0) {
+                html += `<ul style="margin-left:20px; margin-top:3px;">`;
+                salariosArr.forEach(s => { html += `<li>Persona: ${s.persona} - ${s.monto} CUP</li>`; });
                 html += `</ul>`;
             } else {
-                html += `<p style="margin-left:15px; color:#64748b; margin-bottom:6px;">Ninguno</p>`;
+                html += ` Ninguno`;
             }
+            html += `</li>`;
 
-            html += `<div style="border-top:1px dashed #cbd5e1; margin-top:10px; padding-top:8px;">`;
-            html += `<p style="font-size:14px;"><strong>Balance Final Calculado:</strong> ${fin.totalFinal || h.totalFinal}</p>`;
+            html += `<li style="margin-top:5px;"><strong>Ganancia Bruta:</strong> ${gananciaBrutaNum} CUP</li>`;
+            html += `</ul>`;
+
+            // --- SECCIÓN 2: CÁLCULOS ---
+            let finalCalculado = ventaTotalNum - sumaTransf - sumaGastos - sumaSalarios;
+            let efectivoRecaudado = efectivoNum - sumaSalarios;
+            let gananciaNeta = gananciaBrutaNum - sumaGastos - sumaSalarios;
+
+            html += `<h5 style="color:#0f766e; margin-bottom:6px; font-size:13px; text-transform:uppercase; border-top:1px dashed #cbd5e1; padding-top:8px;">Cálculos:</h5>`;
+            html += `<div style="background:#ffffff; padding:10px; border-radius:6px; border:1px solid #e2e8f0; font-family:monospace; font-size:12px; margin-bottom:10px;">`;
+            html += `  <div>${ventaTotalNum} &rarr; venta total</div>`;
+            html += `  <div>- ${sumaTransf} &rarr; transferencia</div>`;
+            html += `  <div>- ${sumaGastos} &rarr; gastos</div>`;
+            html += `  <div>- ${sumaSalarios} &rarr; salario</div>`;
+            html += `  <div style="border-top:1px solid #0f172a; font-weight:bold; margin-top:2px; padding-top:2px;">= ${finalCalculado} &rarr; Final</div>`;
+            html += `<br>`;
+            html += `  <div>${efectivoNum} &rarr; Efectivo en caja</div>`;
+            html += `  <div>- ${sumaSalarios} &rarr; salarios</div>`;
+            html += `  <div style="border-top:1px solid #0f172a; font-weight:bold; margin-top:2px; padding-top:2px;">= ${efectivoRecaudado} &rarr; Efectivo recaudado</div>`;
+            html += `<br>`;
+            html += `  <div>${gananciaBrutaNum} &rarr; Ganancia Bruta</div>`;
+            html += `  <div>- ${sumaGastos} &rarr; Gastos</div>`;
+            html += `  <div>- ${sumaSalarios} &rarr; Salario</div>`;
+            html += `  <div style="border-top:1px solid #0f172a; font-weight:bold; margin-top:2px; padding-top:2px;">= ${gananciaNeta} &rarr; Ganancia Neta</div>`;
             html += `</div>`;
+
+            // --- SECCIÓN 3: CONCLUSIONES ---
+            let diferenciaCaja = efectivoRecaudado - finalCalculado; // Positivo = sobrante, Negativo = faltante
+            let textoConclusionCaja = "";
+            if (diferenciaCaja >= 0) {
+                textoConclusionCaja = `El cuadre dio <strong style="color: #10B981;">correcto</strong>. Hay un sobrante de ${diferenciaCaja} CUP.`;
+            } else {
+                textoConclusionCaja = `Atención: Hay un <strong style="color: #EF4444;">faltante</strong> de ${Math.abs(diferenciaCaja)} CUP.`;
+            }
+
+            let porcentajeVenta = ventaTotalNum > 0 ? ((gananciaNeta / ventaTotalNum) * 100).toFixed(2) : "0.00";
+
+            html += `<h5 style="color:#0f766e; margin-bottom:6px; font-size:13px; text-transform:uppercase; border-top:1px dashed #cbd5e1; padding-top:8px;">Conclusiones:</h5>`;
+            html += `<ul style="margin-left:15px; margin-bottom:0; list-style-type:disc;">`;
+            html += `<li>${textoConclusionCaja}</li>`;
+            html += `<li style="margin-top:4px;">Ganancia neta: ${gananciaNeta} CUP, se presenta un ${porcentajeVenta}% de la venta.</li>`;
+            html += `</ul>`;
+
             html += `</div>`;
 
             container.innerHTML = html;
