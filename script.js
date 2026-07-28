@@ -242,7 +242,6 @@ window.calcularFilaProducto = function(index, precioVenta, precioCompra) {
     calcularCierreFinanciero();
 }
 
-// Añadir filas hacia ABAJO (appendChild)
 window.agregarTransferencia = function() {
     const container = document.getElementById('transferenciasContainer');
     const div = document.createElement('div');
@@ -286,7 +285,6 @@ window.agregarSalario = function() {
     container.appendChild(div);
 }
 
-// Cálculo financiero, salarios descontados de efectivo y comparativa inteligente
 window.calcularCierreFinanciero = function() {
     let ventaTotalEsperada = 0;
     document.querySelectorAll('[id^="totalVenta-"]').forEach(el => {
@@ -311,10 +309,7 @@ window.calcularCierreFinanciero = function() {
 
     let efectivoCaja = parseFloat(document.getElementById('efectivoCaja')?.value) || 0;
 
-    // Final: Venta Total menos Transferencias, Gastos y Salarios
     let totalFinal = ventaTotalEsperada - totalTransferencias - totalGastos - totalSalarios;
-
-    // Efectivo Final real (al efectivo contado en caja se le restan los salarios pagados de ahí)
     let efectivoFinalReal = efectivoCaja - totalSalarios;
 
     const lblVentaTotal = document.getElementById('lblVentaTotal');
@@ -331,17 +326,14 @@ window.calcularCierreFinanciero = function() {
         return;
     }
 
-    // Comparativa: si Final (calculado) <= EfectivoFinalReal, todo correcto (Verde). Si no, faltante (Rojo).
     let diferencia = efectivoFinalReal - totalFinal;
 
     if (diferencia >= 0) {
-        // Cuadrado verde indicando que todo está correcto
         lblResultado.innerHTML = `
             <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; color: #6EE7B7; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center;">
                 ✓ Todo Correcto (Cuadre Exacto o Excedente de +${diferencia} CUP)
             </div>`;
     } else {
-        // Cuadrado rojo con alerta de faltante
         let faltanteAbsoluto = Math.abs(diferencia);
         lblResultado.innerHTML = `
             <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid #EF4444; color: #FCA5A5; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center;">
@@ -361,7 +353,7 @@ window.cancelarCuadre = function() {
 
 window.guardarCuadreFinal = function() {
     const ahora = new Date();
-    const hora = horasLocal = ahora.getHours();
+    const hora = ahora.getHours();
     let nombreTurno = (hora >= 6 && hora < 14) ? "Turno de la Noche (Cierre Mañana)" : "Turno del Día (Cierre Noche)";
 
     alert(`¡Cuadre guardado con éxito!\nRegistrado como: ${nombreTurno}\nHora exacta: ${ahora.toLocaleTimeString()}`);
@@ -378,20 +370,6 @@ window.verAlmacen = function() {
 
 window.selectUser = selectUser;
 window.goBack = goBack;
-window.logout = logout;[27/7, 16:08] +55 27 3208-2264: O pedido de demissão de uma funcionária gestante pode depender de assistência do sindicato ou da autoridade competente para ser considerado válido, em razão da estabilidade provisória garantida à gestante. Na prática, muitas empresas encaminham a empregada ao sindicato para homologar o pedido de demissão, com o objetivo de garantir que a decisão foi tomada de forma livre e consciente, reduzindo o risco de futuras discussões judiciais.
-
-Se essa assistência obrigatória não ocorrer quando exigida, é possível analisar a situação e, conforme o caso, buscar judicialmente o reconhecimento da estabilidade gestacional e os direitos decorrentes.
-
-Quando a funcionária pede demissão, em regra, ela tem direito ao saldo de salário, férias vencidas e proporcionais acrescidas de 1/3, 13º salário proporcional e pode receber o salário-maternidade pago pelo INSS, desde que preenchidos os requisitos legais. Nessa hipótese, normalmente não há direito ao aviso-prévio indenizado, à multa de 40% do FGTS nem ao seguro-desemprego.
-[27/7, 16:08] +55 27 3208-2264: Ou seja, se a empresa ela não fizer a homologação no sindicato, podemos entrar com o processo de estabilidade e buscar os seus direitos, e você receber em casa[27/7, 16:08] +55 27 3208-2264: O pedido de demissão de uma funcionária gestante pode depender de assistência do sindicato ou da autoridade competente para ser considerado válido, em razão da estabilidade provisória garantida à gestante. Na prática, muitas empresas encaminham a empregada ao sindicato para homologar o pedido de demissão, com o objetivo de garantir que a decisão foi tomada de forma livre e consciente, reduzindo o risco de futuras discussões judiciais.
-
-Se essa assistência obrigatória não ocorrer quando exigida, é possível analisar a situação e, conforme o caso, buscar judicialmente o reconhecimento da estabilidade gestacional e os direitos decorrentes.
-
-Quando a funcionária pede demissão, em regra, ela tem direito ao saldo de salário, férias vencidas e proporcionais acrescidas de 1/3, 13º salário proporcional e pode receber o salário-maternidade pago pelo INSS, desde que preenchidos os requisitos legais. Nessa hipótese, normalmente não há direito ao aviso-prévio indenizado, à multa de 40% do FGTS nem ao seguro-desemprego.
-[27/7, 16:08] +55 27 3208-2264: Ou seja, se a empresa ela não fizer a homologação no sindicato, podemos entrar com o processo de estabilidade e buscar os seus direitos, e você receber em casa[27/7, 16:08] +55 27 3208-2264: O pedido de demissão de uma funcionária gestante pode depender de assistência do sindicato ou da autoridade competente para ser considerado válido, em razão da estabilidade provisória garantida à gestante. Na prática, muitas empresas encaminham a empregada ao sindicato para homologar o pedido de demissão, com o objetivo de garantir que a decisão foi tomada de forma livre e consciente, reduzindo o risco de futuras discussões judiciais.
-
-Se essa assistência obrigatória não ocorrer quando exigida, é possível analisar a situação e, conforme o caso, buscar judicialmente o reconhecimento da estabilidade gestacional e os direitos decorrentes.
-
-Quando a funcionária pede demissão, em regra, ela tem direito ao saldo de salário, férias vencidas e proporcionais acrescidas de 1/3, 13º salário proporcional e pode receber o salário-maternidade pago pelo INSS, desde que preenchidos os requisitos legais. Nessa hipótese, normalmente não há direito ao aviso-prévio indenizado, à multa de 40% do FGTS nem ao seguro-desemprego.
-[27/7, 16:08] +55 27 3208-2264: Ou seja, se a empresa ela não fizer a homologação no sindicato, podemos entrar com o processo de estabilidade e buscar os seus direitos, e você receber em casa
+window.logout = logout;
 window.verifyPin = verifyPin;
+
