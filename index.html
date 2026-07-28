@@ -142,6 +142,62 @@
                 <button class="btn-primary" onclick="guardarCuadreFinal()">Guardar Cuadre</button>
             </div>
         </div>
+
+        <!-- PANTALLA 5: Historial de Cuadres (Para Administradoras) -->
+        <div id="historialSection" class="screen">
+            <div class="header">
+                <h2>Historial de Cuadres</h2>
+                <p class="subtitle">Registros de turnos anteriores</p>
+            </div>
+            
+            <div id="listaHistorialContainer" style="margin-bottom: 20px;">
+                <p style="text-align: center; color: var(--text-secondary);">Cargando historial...</p>
+            </div>
+
+            <div class="auth-actions">
+                <button class="btn-secondary" onclick="cerrarHistorial()">Volver al Menú</button>
+            </div>
+        </div>
+
+        <!-- PANTALLA 6: Detalle de un Cuadre del Historial -->
+        <div id="detalleCuadreSection" class="screen">
+            <div class="header">
+                <h2 id="detalleTituloTurno">Detalle del Cuadre</h2>
+                <p class="subtitle" id="detalleSubInfo">Información completa del turno</p>
+            </div>
+
+            <div id="detalleContenidoContainer" style="width: 100%; overflow-x: auto; max-height: 450px; overflow-y: auto; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                <!-- Aquí se inyectará la tabla completa con todas las columnas de ganancias -->
+            </div>
+
+            <div class="auth-actions">
+                <button class="btn-secondary" onclick="volverAlHistorial()">Volver al Historial</button>
+            </div>
+        </div>
+
+    </div> <!-- Fin de app-container -->
+
+    <!-- VENTANA MODAL ESTILIZADA (Reemplazo del alert feo) -->
+    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(5px); z-index: 1000; justify-content: center; align-items: center; padding: 20px;">
+        <div style="background: rgba(30, 41, 59, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); padding: 25px; border-radius: 16px; width: 100%; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            <div id="modalIcon" style="font-size: 3rem; margin-bottom: 10px;">✓</div>
+            <h3 id="modalTitle" style="color: #F8FAFC; font-size: 1.2rem; margin-bottom: 10px;">¡Guardado Exitoso!</h3>
+            <p id="modalMessage" style="color: #94A3B8; font-size: 0.9rem; margin-bottom: 20px; line-height: 1.4;">El cuadre está guardado. Se sincronizará en cuanto haya internet.</p>
+            <button onclick="cerrarModalCustom()" class="btn-primary" style="width: 100%;">Aceptar</button>
+        </div>
+    </div>
+
+    <!-- MENÚ FLOTANTE DE NOTIFICACIONES (Campanita) -->
+    <div id="modalNotificaciones" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(5px); z-index: 1000; justify-content: center; align-items: center; padding: 20px;">
+        <div style="background: rgba(30, 41, 59, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); padding: 20px; border-radius: 16px; width: 100%; max-width: 400px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            <h3 style="color: #F8FAFC; font-size: 1.1rem; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Notificaciones de Turnos</h3>
+            <div id="listaNotificacionesContainer" style="margin-bottom: 15px; text-align: left;">
+                <p style="color: #94A3B8; font-size: 0.9rem; text-align: center;">Cargando notificaciones...</p>
+            </div>
+            <button onclick="cerrarModalNotificaciones()" class="btn-secondary" style="width: 100%;">Cerrar</button>
+        </div>
+    </div>
+
         
     </div>
 
