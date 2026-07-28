@@ -133,7 +133,6 @@ window.iniciarCuadre = async function() {
     const esYoandri = (currentUser === 'yoandri');
 
     try {
-        // 1. Cargar productos desde Firebase
         const querySnapshot = await getDocs(collection(db, "productos"));
         productosMapCache = {};
         querySnapshot.forEach((docSnap) => {
@@ -141,7 +140,7 @@ window.iniciarCuadre = async function() {
             if (data.nombre) productosMapCache[data.nombre.trim()] = data;
         });
 
-        // 2. Buscar el ÚLTIMO cuadre guardado para heredar la columna "Inicio" automáticamente
+        // Buscar el ÚLTIMO cuadre guardado para heredar la columna "Inicio"
         let ultimosValoresFinales = {};
         try {
             const histRef = collection(db, "historial_cuadres");
@@ -157,7 +156,7 @@ window.iniciarCuadre = async function() {
                 }
             }
         } catch(err) {
-            console.log("No hay cuadre previo o error al buscar inicio automático:", err);
+            console.log("Error al buscar inicio automático:", err);
         }
 
         let html = '<table><tr><th>PRODUCTO</th><th>INICIO</th><th>ENTRADA</th><th>BAJA</th><th>FINAL</th><th>VENTA</th>';
@@ -180,7 +179,6 @@ window.iniciarCuadre = async function() {
             const colorFondo = filaAlternada ? '#f1f5f9' : '#ffffff';
             filaAlternada = !filaAlternada;
 
-            // Verificar si hay valor previo heredado del turno anterior
             const valorInicioPrevio = ultimosValoresFinales[p.nombre.trim()];
             const esHeredado = (valorInicioPrevio !== undefined && valorInicioPrevio !== null && valorInicioPrevio !== "");
 
@@ -188,10 +186,8 @@ window.iniciarCuadre = async function() {
             html += `<td style="text-align: left;">${p.nombre}</td>`;
             
             if (esHeredado) {
-                // Bloqueado a partir del segundo cuadre con el final anterior
-                html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px; background-color: #e2e8f0; color: #334155; font-weight: bold;" value="${valorInicioPrevio}" readonly oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+                html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px; background-color: #cbd5e1; color: #0f172a; font-weight: bold;" value="${valorInicioPrevio}" readonly oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             } else {
-                // Editable si es el primer cuadre
                 html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             }
 
@@ -209,23 +205,19 @@ window.iniciarCuadre = async function() {
             html += `</tr>`;
         });
         container.innerHTML = html + '</table>';
-        
-        // Ejecutar cálculo inicial para poblar totales en cero o heredados
+
+        // Recalcular filas con valores heredados de inicio
         document.querySelectorAll('tr[data-index]').forEach(row => {
             const idx = row.dataset.index;
             const nom = row.dataset.nombre;
             const pr = productosMapCache[nom] || { precioVenta: 0, precioCompra: 0 };
-            if(esHeredadoParaFila(row)) {
+            const inpInicio = row.querySelector('.input-inicio');
+            if(inpInicio && inpInicio.readOnly && inpInicio.value !== "") {
                 calcularFilaProducto(idx, pr.precioVenta, pr.precioCompra);
             }
         });
 
     } catch (e) { console.error(e); }
-}
-
-function esHeredadoParaFila(row) {
-    const inp = row.querySelector('.input-inicio');
-    return inp && inp.readOnly;
 }
 
 window.calcularFilaProducto = function(index, precioVenta, precioCompra) {
@@ -506,7 +498,7 @@ window.volverAlHistorial = function() {
     document.getElementById('historialSection').classList.add('active');
 }
 
-// VER DETALLE COMPLETO CON DESGLOSE EN 3 PARTES (DATOS, CÁLCULOS, CONCLUSIONES) Y COLUMNAS STICKY
+// VER DETALLE COMPLETO CON TABLA IDÉNTICA Y DESGLOSE EN 3 PARTES
 window.verDetalleCuadre = async function(id) {
     document.getElementById('historialSection').classList.remove('active');
     document.getElementById('detalleCuadreSection').classList.add('active');
@@ -522,7 +514,7 @@ window.verDetalleCuadre = async function(id) {
             document.getElementById('detalleTituloTurno').innerText = `Turno: ${h.turno}`;
             document.getElementById('detalleSubInfo').innerText = `Responsable: ${h.usuario} (${h.fecha})`;
 
-            // Tabla con cabeceras Sticky
+            // Tabla con cabeceras Sticky y mismo formato limpio que la de llenado
             let html = '<div style="max-height: 400px; overflow-y: auto;">';
             html += '<table style="width:100%; border-collapse:collapse; background:white; color:#0f172a; font-size:12px;">';
             html += '<tr style="background:#1e293b; color:white; text-align:center; position: sticky; top: 0; z-index: 10;">';
@@ -530,8 +522,12 @@ window.verDetalleCuadre = async function(id) {
             html += '</tr>';
 
             if(h.productos && h.productos.length > 0) {
+                let filaAltHist = false;
                 h.productos.forEach(p => {
-                    html += `<tr style="border-bottom:1px solid #e2e8f0; text-align:center;">`;
+                    const bgColHist = filaAltHist ? '#f1f5f9' : '#ffffff';
+                    filaAltHist = !filaAltHist;
+
+                    html += `<tr style="background-color: ${bgColHist}; border-bottom:1px solid #e2e8f0; text-align:center;">`;
                     html += `<td style="padding:6px; text-align:left; font-weight:500;">${p.nombre}</td>`;
                     html += `<td>${p.inicio}</td><td>${p.entrada}</td><td>${p.baja}</td><td>${p.final}</td><td style="font-weight:bold;">${p.venta}</td>`;
                     html += `<td>$${p.precioCompra || 0}</td><td>$${p.precioVenta || 0}</td><td style="color:#059669; font-weight:bold;">$${p.totalVenta}</td>`;
@@ -541,27 +537,22 @@ window.verDetalleCuadre = async function(id) {
             }
             html += '</table></div>';
 
-            // EXTRACCIÓN DE DATOS PARA LOS CÁLCULOS Y CONCLUSIONES
+            // EXTRACCIÓN DE DATOS PARA CÁLCULOS Y CONCLUSIONES
             const fin = h.financiero || {};
-            
-            // 1. Venta Total numérica limpia
             let ventaTotalNum = parseFloat((fin.ventaTotal || "0").replace(/[^0-9.]/g, '')) || 0;
             let efectivoNum = parseFloat(fin.efectivo || 0) || 0;
             
-            // 2. Transferencias
+            // Transferencias formateadas exactamente como pediste
             let transfArr = fin.transferencias || [];
             let sumaTransf = transfArr.reduce((a, b) => a + b, 0);
             let transfTexto = transfArr.length > 1 ? `(${transfArr.length}) : ${sumaTransf} CUP` : `${sumaTransf} CUP`;
 
-            // 3. Gastos
             let gastosArr = fin.gastos || [];
             let sumaGastos = gastosArr.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
 
-            // 4. Salarios
             let salariosArr = fin.salarios || [];
             let sumaSalarios = salariosArr.reduce((acc, s) => acc + (parseFloat(s.monto) || 0), 0);
 
-            // 5. Ganancia Bruta (calculada sumando la columna ganancia total)
             let gananciaBrutaNum = fin.gananciaBruta !== undefined ? fin.gananciaBruta : 0;
             if (gananciaBrutaNum === 0 && h.productos) {
                 h.productos.forEach(p => { gananciaBrutaNum += (parseFloat(p.gananciaT) || 0); });
@@ -574,7 +565,7 @@ window.verDetalleCuadre = async function(id) {
             html += `<ul style="margin-left:15px; margin-bottom:10px; list-style-type:disc;">`;
             html += `<li><strong>Venta total:</strong> ${ventaTotalNum} CUP</li>`;
             html += `<li><strong>Efectivo en caja:</strong> ${efectivoNum} CUP</li>`;
-            html += `<li><strong>Transferencias${transfArr.length > 1 ? ' ' + (transfArr.length > 1 ? '('+transfArr.length+')' : '') : ''} (-):</strong> ${sumaTransf} CUP</li>`;
+            html += `<li><strong>Transferencia${transfArr.length > 1 ? 's ('+transfArr.length+')' : ''}:</strong> ${sumaTransf} CUP</li>`;
             
             html += `<li><strong>Gastos del turno:</strong>`;
             if(gastosArr.length > 0) {
@@ -599,7 +590,7 @@ window.verDetalleCuadre = async function(id) {
             html += `<li style="margin-top:5px;"><strong>Ganancia Bruta:</strong> ${gananciaBrutaNum} CUP</li>`;
             html += `</ul>`;
 
-            // --- SECCIÓN 2: CÁLCULOS ---
+            // --- SECCIÓN 2: CÁLCULOS (En plural) ---
             let finalCalculado = ventaTotalNum - sumaTransf - sumaGastos - sumaSalarios;
             let efectivoRecaudado = efectivoNum - sumaSalarios;
             let gananciaNeta = gananciaBrutaNum - sumaGastos - sumaSalarios;
@@ -607,9 +598,9 @@ window.verDetalleCuadre = async function(id) {
             html += `<h5 style="color:#0f766e; margin-bottom:6px; font-size:13px; text-transform:uppercase; border-top:1px dashed #cbd5e1; padding-top:8px;">Cálculos:</h5>`;
             html += `<div style="background:#ffffff; padding:10px; border-radius:6px; border:1px solid #e2e8f0; font-family:monospace; font-size:12px; margin-bottom:10px;">`;
             html += `  <div>${ventaTotalNum} &rarr; venta total</div>`;
-            html += `  <div>- ${sumaTransf} &rarr; transferencia</div>`;
+            html += `  <div>- ${sumaTransf} &rarr; transferencias</div>`;
             html += `  <div>- ${sumaGastos} &rarr; gastos</div>`;
-            html += `  <div>- ${sumaSalarios} &rarr; salario</div>`;
+            html += `  <div>- ${sumaSalarios} &rarr; salarios</div>`;
             html += `  <div style="border-top:1px solid #0f172a; font-weight:bold; margin-top:2px; padding-top:2px;">= ${finalCalculado} &rarr; Final</div>`;
             html += `<br>`;
             html += `  <div>${efectivoNum} &rarr; Efectivo en caja</div>`;
@@ -617,13 +608,13 @@ window.verDetalleCuadre = async function(id) {
             html += `  <div style="border-top:1px solid #0f172a; font-weight:bold; margin-top:2px; padding-top:2px;">= ${efectivoRecaudado} &rarr; Efectivo recaudado</div>`;
             html += `<br>`;
             html += `  <div>${gananciaBrutaNum} &rarr; Ganancia Bruta</div>`;
-            html += `  <div>- ${sumaGastos} &rarr; Gastos</div>`;
-            html += `  <div>- ${sumaSalarios} &rarr; Salario</div>`;
+            html += `  <div>- ${sumaGastos} &rarr; gastos</div>`;
+            html += `  <div>- ${sumaSalarios} &rarr; salarios</div>`;
             html += `  <div style="border-top:1px solid #0f172a; font-weight:bold; margin-top:2px; padding-top:2px;">= ${gananciaNeta} &rarr; Ganancia Neta</div>`;
             html += `</div>`;
 
             // --- SECCIÓN 3: CONCLUSIONES ---
-            let diferenciaCaja = efectivoRecaudado - finalCalculado; // Positivo = sobrante, Negativo = faltante
+            let diferenciaCaja = efectivoRecaudado - finalCalculado;
             let textoConclusionCaja = "";
             if (diferenciaCaja >= 0) {
                 textoConclusionCaja = `El cuadre dio <strong style="color: #10B981;">correcto</strong>. Hay un sobrante de ${diferenciaCaja} CUP.`;
@@ -636,7 +627,7 @@ window.verDetalleCuadre = async function(id) {
             html += `<h5 style="color:#0f766e; margin-bottom:6px; font-size:13px; text-transform:uppercase; border-top:1px dashed #cbd5e1; padding-top:8px;">Conclusiones:</h5>`;
             html += `<ul style="margin-left:15px; margin-bottom:0; list-style-type:disc;">`;
             html += `<li>${textoConclusionCaja}</li>`;
-            html += `<li style="margin-top:4px;">Ganancia neta: ${gananciaNeta} CUP, se presenta un ${porcentajeVenta}% de la venta.</li>`;
+            html += `<li style="margin-top:4px;">Ganancia neta: ${gananciaNeta} CUP, este monto representa el ${porcentajeVenta}% de la venta.</li>`;
             html += `</ul>`;
 
             html += `</div>`;
