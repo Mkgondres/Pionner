@@ -21,7 +21,6 @@ enableIndexedDbPersistence(db).catch(() => {});
 let currentUser = '';
 let currentUserName = '';
 
-// FILTRO PARA CORREGIR LOS TURNOS VIEJOS GUARDADOS EN FIREBASE
 function limpiarNombreTurno(turnoStr) {
     if (!turnoStr) return "Turno Desconocido";
     if (turnoStr === "Cierre Noche") return "Turno de Noche";
@@ -148,7 +147,6 @@ window.iniciarCuadre = async function() {
             if (data.nombre) productosMapCache[data.nombre.trim()] = data;
         });
 
-        // Habilitar Inicio Automático bloqueado
         let ultimosValoresFinales = {};
         try {
             const histRef = collection(db, "historial_cuadres");
@@ -193,7 +191,6 @@ window.iniciarCuadre = async function() {
             html += `<tr class="${filaClase}" data-index="${idx}" data-nombre="${p.nombre}">`;
             html += `<td>${p.nombre}</td>`;
             
-            // LA CLAVE AQUÍ ES QUE ESTOS INPUTS TIENEN WIDTH: 50px
             if (esHeredado) {
                 html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px; background-color: #cbd5e1; color: #0f172a;" value="${valorInicioPrevio}" readonly oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             } else {
@@ -305,7 +302,7 @@ window.guardarCuadreFinal = async function() {
 
     const ahora = new Date();
     const hora = ahora.getHours();
-    let nombreTurno = (hora >= 6 && hora < 18) ? "Turno de Día" : "Turno de Noche"; // Formato Nuevo Limpio
+    let nombreTurno = (hora >= 6 && hora < 18) ? "Turno de Día" : "Turno de Noche";
 
     let detalle = [];
     let gananciaBrutaTotal = 0;
@@ -394,13 +391,17 @@ window.guardarCuadreFinal = async function() {
             return;
         }
 
-        await addDoc(collection(db, "historial_cuadres"), datos);
+        // GUARDAMOS EL CUADRE Y RECUPERAMOS EL ID
+        const nuevoCuadreRef = await addDoc(collection(db, "historial_cuadres"), datos);
+        
+        // GUARDAMOS LA NOTIFICACIÓN INCLUYENDO EL ID DIRECTO DEL CUADRE
         await addDoc(collection(db, "notificaciones"), { 
             leido: false, 
             msg: `Yoandri envió cuadre nuevo (${nombreTurno} - ${ahora.toLocaleDateString()})`, 
             time: serverTimestamp(),
             usuario: currentUserName,
-            turno: nombreTurno
+            turno: nombreTurno,
+            cuadreId: nuevoCuadreRef.id
         });
         
         document.getElementById('customModal').style.display = 'flex';
@@ -438,9 +439,10 @@ window.verNotificaciones = async function() {
         snap.forEach(docSnap => {
             const n = docSnap.data();
             const nombreTurnoLimpio = limpiarNombreTurno(n.turno);
-            html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer;">
+            // AL TOCAR LA NOTIFICACIÓN, ENVÍA EL ID DIRECTO DEL CUADRE
+            html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}', '${n.cuadreId}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer;">
                 <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 Yoandri envió cuadre nuevo (${nombreTurnoLimpio})</p>
-                <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver el cuadre y cerrar la alerta</span>
+                <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver el cuadre directo y cerrar la alerta</span>
             </div>`;
         });
         container.innerHTML = html || '<p style="color:#94A3B8; text-align:center;">No hay notificaciones pendientes.</p>';
@@ -449,12 +451,18 @@ window.verNotificaciones = async function() {
     }
 }
 
-window.abrirAtajoNotificacion = async function(notifId) {
+// ATAJO MEJORADO: TE LLEVA DIRECTO AL DETALLE Y AL VIRAR ATRÁS CAES EN EL HISTORIAL
+window.abrirAtajoNotificacion = async function(notifId, cuadreId) {
     try {
         await deleteDoc(doc(db, "notificaciones", notifId));
         document.getElementById('modalNotificaciones').style.display = 'none';
         verificarNotificacionesPendientes();
-        verHistorial();
+        
+        if (cuadreId && cuadreId !== 'undefined') {
+            verDetalleCuadre(cuadreId);
+        } else {
+            verHistorial(); // Solo por si era una notificación muy vieja que no tenía el ID
+        }
     } catch(e) {
         alert("Error al procesar el atajo.");
     }
@@ -464,6 +472,7 @@ window.cerrarModalNotificaciones = function() {
     document.getElementById('modalNotificaciones').style.display = 'none';
 }
 
+// HISTORIAL ORGANIZADO POR FECHAS (ACORDEÓN)
 window.verHistorial = async function() {
     document.getElementById('mainApp').classList.remove('active');
     document.getElementById('historialSection').classList.add('active');
@@ -471,27 +480,80 @@ window.verHistorial = async function() {
     container.innerHTML = '<p style="text-align:center; color:#94A3B8;">Cargando historial...</p>';
 
     try {
-        const querySnapshot = await getDocs(collection(db, "historial_cuadres"));
-        let html = '';
+        const qHistorial = query(collection(db, "historial_cuadres"), orderBy("timestamp", "desc"));
+        const querySnapshot = await getDocs(qHistorial);
         
+        const gruposPorFecha = {};
+        
+        // Agrupando los cuadres por el día exacto
         querySnapshot.forEach((docSnap) => {
             const h = docSnap.data();
-            const nombreTurnoLimpio = limpiarNombreTurno(h.turno); // Aplica el filtro para borrar "Cierre" viejo
-            html += `<div onclick="verDetalleCuadre('${docSnap.id}')" style="background:rgba(30,41,59,0.7); border:1px solid rgba(255,255,255,0.1); padding:12px; border-radius:10px; margin-bottom:10px; cursor:pointer;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                    <strong style="color:#10B981;">${h.usuario}</strong>
-                    <span style="color:#94A3B8; font-size:0.8rem;">${h.fecha || 'Sin fecha'}</span>
-                </div>
-                <p style="color:#F8FAFC; font-size:0.9rem;">Turno: ${nombreTurnoLimpio}</p>
-                <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:0.85rem; color:#cbd5e1;">
-                    <span>Venta: ${h.financiero?.ventaTotal}</span>
-                    <span>Final: ${h.financiero?.totalFinal}</span>
-                </div>
-            </div>`;
+            const fechaCompleta = h.fecha || 'Sin fecha';
+            const dateOnly = fechaCompleta.includes(',') ? fechaCompleta.split(',')[0].trim() : fechaCompleta.split(' ')[0].trim();
+            
+            if(!gruposPorFecha[dateOnly]) {
+                gruposPorFecha[dateOnly] = [];
+            }
+            gruposPorFecha[dateOnly].push({ id: docSnap.id, ...h });
         });
-        container.innerHTML = html || '<p style="text-align:center; color:#94A3B8;">No hay cuadres guardados aún.</p>';
+        
+        let html = '';
+        let groupIdx = 0;
+        
+        for (const [date, cuadres] of Object.entries(gruposPorFecha)) {
+            const isFirst = (groupIdx === 0);
+            const displayStyle = isFirst ? 'block' : 'none'; // El día más reciente abierto por defecto
+            const icon = isFirst ? '▲' : '▼';
+            
+            html += `
+            <div style="background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 12px;">
+                <div onclick="toggleDateGroup(${groupIdx})" style="padding: 14px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; color: #F8FAFC; font-weight: bold; background: rgba(30,41,59,0.5); border-radius: 8px;">
+                    <span>📅 Historial del ${date}</span>
+                    <span id="icon-group-${groupIdx}">${icon}</span>
+                </div>
+                <div id="content-group-${groupIdx}" style="display: ${displayStyle}; padding: 12px; border-top: 1px solid rgba(255,255,255,0.05);">
+            `;
+            
+            cuadres.forEach(h => {
+                const nombreTurnoLimpio = limpiarNombreTurno(h.turno);
+                const horaOnly = h.fecha ? (h.fecha.includes(',') ? h.fecha.split(',')[1].trim() : '') : '';
+                
+                html += `<div onclick="verDetalleCuadre('${h.id}')" style="background:rgba(30,41,59,0.7); border:1px solid rgba(255,255,255,0.1); padding:12px; border-radius:10px; margin-bottom:10px; cursor:pointer;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <strong style="color:#10B981;">${h.usuario}</strong>
+                        <span style="color:#94A3B8; font-size:0.8rem;">${horaOnly}</span>
+                    </div>
+                    <p style="color:#F8FAFC; font-size:0.9rem; font-weight: bold;">${nombreTurnoLimpio}</p>
+                    <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:0.85rem; color:#cbd5e1;">
+                        <span>Venta: ${h.financiero?.ventaTotal}</span>
+                        <span>Final: ${h.financiero?.totalFinal}</span>
+                    </div>
+                </div>`;
+            });
+            
+            html += `</div></div>`;
+            groupIdx++;
+        }
+        
+        if (html === '') {
+            html = '<p style="text-align:center; color:#94A3B8;">No hay cuadres guardados aún.</p>';
+        }
+        container.innerHTML = html;
     } catch(e) {
         container.innerHTML = '<p style="text-align:center; color:#EF4444;">Error al cargar el historial.</p>';
+    }
+}
+
+// Función para abrir y cerrar el acordeón del historial
+window.toggleDateGroup = function(idx) {
+    const el = document.getElementById('content-group-' + idx);
+    const icon = document.getElementById('icon-group-' + idx);
+    if (el.style.display === 'none') {
+        el.style.display = 'block';
+        icon.innerText = '▲';
+    } else {
+        el.style.display = 'none';
+        icon.innerText = '▼';
     }
 }
 
@@ -519,14 +581,14 @@ window.verDetalleCuadre = async function(id) {
 
         if(docSnap.exists()) {
             const h = docSnap.data();
-            const nombreTurnoLimpio = limpiarNombreTurno(h.turno); // Aplica el filtro para borrar "Cierre" viejo
-            document.getElementById('detalleTituloTurno').innerText = `Turno: ${nombreTurnoLimpio}`;
+            const nombreTurnoLimpio = limpiarNombreTurno(h.turno);
+            // AHORA EL TÍTULO ES DIRECTAMENTE EL NOMBRE (Sin "Turno: ")
+            document.getElementById('detalleTituloTurno').innerText = nombreTurnoLimpio;
             document.getElementById('detalleSubInfo').innerText = `Responsable: ${h.usuario} (${h.fecha})`;
 
-            // TABLA IDÉNTICA CLONADA VISUALMENTE
             let html = '<table style="width: 100%; min-width: 800px; border-collapse: collapse; background: #ffffff; color: #0f172a;">';
             html += '<tr>';
-            html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: left; left: 0; z-index: 51;">PRODUCTO</th>';
+            html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: left;">PRODUCTO</th>';
             html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">INICIO</th>';
             html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">ENTRADA</th>';
             html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">BAJA</th>';
@@ -543,8 +605,6 @@ window.verDetalleCuadre = async function(id) {
 
             if(h.productos && h.productos.length > 0) {
                 let filaAlternada = false;
-                
-                // ESTA ES LA "CAJITA" FALSA PARA QUE LOS NÚMEROS TENGAN EL MISMO ANCHO (50px) Y SE VEAN IGUAL DE AMPLIOS QUE LOS INPUTS ORIGINALES
                 const cajitaFakeCSS = "width: 50px; text-align: center; margin: 0 auto; font-weight: bold; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 0; color: #0f172a; display: block;";
 
                 h.productos.forEach(p => {
@@ -572,7 +632,6 @@ window.verDetalleCuadre = async function(id) {
             }
             html += '</table>';
 
-            // DATOS FINANCIEROS Y RESTO DEL DESGLOSE (Oculto parcial para Yoandri y sin textos "motivo/persona")
             const fin = h.financiero || {};
             let ventaTotalNum = parseFloat((fin.ventaTotal || "0").replace(/[^0-9.]/g, '')) || 0;
             let efectivoNum = parseFloat(fin.efectivo || 0) || 0;
@@ -589,7 +648,6 @@ window.verDetalleCuadre = async function(id) {
                 h.productos.forEach(p => { gananciaBrutaNum += (parseFloat(p.gananciaT) || 0); });
             }
 
-            // SECCIÓN 1: DATOS 
             html += `<div style="background:#f8fafc; padding:15px; margin-top:15px; border-radius:8px; color:#0f172a; font-size:13px; border:1px solid #cbd5e1; text-align: left;">`;
             html += `<h4 style="margin-bottom:10px; border-bottom:2px solid #1e293b; padding-bottom:5px; color:#1e293b; font-size:15px;">Desglose Financiero</h4>`;
             html += `<h5 style="color:#0f766e; margin-bottom:6px; font-size:13px; text-transform:uppercase;">Datos:</h5>`;
@@ -628,7 +686,6 @@ window.verDetalleCuadre = async function(id) {
             }
             html += `</ul>`;
 
-            // SECCIÓN 2: CÁLCULOS
             let finalCalculado = ventaTotalNum - sumaTransf - sumaGastos - sumaSalarios;
             let efectivoRecaudado = efectivoNum - sumaSalarios;
             let gananciaNeta = gananciaBrutaNum - sumaGastos - sumaSalarios;
@@ -654,7 +711,6 @@ window.verDetalleCuadre = async function(id) {
             }
             html += `</div>`;
 
-            // SECCIÓN 3: CONCLUSIONES
             let diferenciaCaja = efectivoRecaudado - finalCalculado;
             let textoConclusionCaja = "";
             if (diferenciaCaja >= 0) {
