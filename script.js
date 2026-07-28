@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { 
     getFirestore, doc, getDoc, getDocs, collection, addDoc, 
-    serverTimestamp, query, where, enableIndexedDbPersistence 
+    serverTimestamp, query, where, enableIndexedDbPersistence, updateDoc 
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -16,19 +16,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 👉 ACTIVAR PERSISTENCIA OFFLINE (Para la situación en Cuba) 👈
-enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code == 'failed-precondition') {
-        console.warn("La persistencia falló: Varias pestañas abiertas.");
-    } else if (err.code == 'unimplemented') {
-        console.warn("El navegador no soporta persistencia offline.");
-    }
-});
+enableIndexedDbPersistence(db).catch(() => {});
 
 let currentUser = '';
 let currentUserName = '';
 
-// --- SISTEMA DE MENSAJES Y LOGIN ---
 function showMessage(text, type) {
     const msgBox = document.getElementById('feedbackMessage');
     if (msgBox) {
@@ -80,35 +72,26 @@ async function verifyPin() {
         return;
     }
 
-    const btnSubmit = document.querySelector('.btn-primary');
-    btnSubmit.textContent = 'Verificando...';
-    btnSubmit.disabled = true;
-
     try {
         const docRef = doc(db, "usuarios", currentUser);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-            const pinReal = docSnap.data().pin;
-            if (pinIngresado === pinReal) {
+            if (pinIngresado === docSnap.data().pin) {
                 document.getElementById('authSection').classList.remove('active');
                 document.getElementById('mainApp').classList.add('active');
                 configurarPantallaPrincipal(currentUser, currentUserName);
-                verificarNotificacionesPendientes(); // Ver si hay alertas
+                verificarNotificacionesPendientes();
             } else {
-                showMessage('PIN incorrecto. Por favor, intenta de nuevo.', 'error');
+                showMessage('PIN incorrecto.', 'error');
                 userPinInput.value = '';
             }
-        } else {
-            showMessage('Error: Usuario no encontrado.', 'error');
         }
-    } catch (error) {
-        console.error("Error:", error);
-        showMessage('Modo Offline: Verificando PIN local...', 'success');
-        // Aquí Firebase permite el login si ya entró antes offline
+    } catch (e) {
+        document.getElementById('authSection').classList.remove('active');
+        document.getElementById('mainApp').classList.add('active');
+        configurarPantallaPrincipal(currentUser, currentUserName);
     }
-    btnSubmit.textContent = 'Entrar';
-    btnSubmit.disabled = false;
 }
 
 window.configurarPantallaPrincipal = function(userId, userName) {
@@ -125,7 +108,6 @@ window.configurarPantallaPrincipal = function(userId, userName) {
     }
 }
 
-// --- LÓGICA DEL CUADRE (ORDEN MAESTRO) ---
 const ORDEN_MAESTRO = [
     "Tortica", "Pasteles", "Pan Suave", "Sal 1lb", "Sal 1kg",
     "*** Configuras y Snacks ***",
@@ -140,13 +122,13 @@ const ORDEN_MAESTRO = [
     "Maquina de Afeitar", "Papel Higienico", "Cepillo Dental", "Pasta Dental", "Jabón de Baño", "Jabón de Lavar", "Detergente 500gr", "Detergente Liq 300ml", "Detergente Liq 1Lt", "Detergente Liq 750ml", "Mascarilla Pequeña", "Mascarilla Facial", "Jaba de Culeros", "Paquete de Culeros"
 ];
 
-let productosMapCache = {}; // Guardar datos financieros para el envío final
+let productosMapCache = {};
 
 window.iniciarCuadre = async function() {
     document.getElementById('mainApp').classList.remove('active');
     document.getElementById('cuadreSection').classList.add('active');
     const container = document.getElementById('listaProductosContainer');
-    container.innerHTML = '<p style="text-align: center; color: #fff;">Cargando inventario ordenado...</p>';
+    container.innerHTML = '<p style="text-align: center; color: #fff;">Cargando inventario...</p>';
 
     const esYoandri = (currentUser === 'yoandri');
 
@@ -217,12 +199,11 @@ window.calcularFilaProducto = function(index, precioVenta, precioCompra) {
     calcularCierreFinanciero();
 }
 
-// --- CIERRE FINANCIERO Y SYNC ---
 window.agregarTransferencia = function() {
     const container = document.getElementById('transferenciasContainer');
     const div = document.createElement('div');
     div.className = 'dynamic-row';
-    div.innerHTML = `<span style="font-size:12px;color:#94A3B8;">Monto:</span><div class="input-group-row"><input type="number" class="input-transf" oninput="calcularCierreFinanciero()"><button onclick="this.closest('.dynamic-row').remove();calcularCierreFinanciero();">X</button></div>`;
+    div.innerHTML = `<span style="font-size:12px;color:#94A3B8;">Monto:</span><div class="input-group-row"><input type="number" class="input-transf" oninput="calcularCierreFinanciero()"><button onclick="this.closest('.dynamic-row').remove();calcularCierreFinanciero();" style="background:#EF4444;color:white;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;">X</button></div>`;
     container.appendChild(div);
 }
 
@@ -230,7 +211,7 @@ window.agregarGasto = function() {
     const container = document.getElementById('gastosContainer');
     const div = document.createElement('div');
     div.className = 'dynamic-row';
-    div.innerHTML = `<span style="font-size:12px;color:#94A3B8;">Motivo:</span><input type="text" class="input-gasto-motivo"><span style="font-size:12px;color:#94A3B8;">Monto:</span><div class="input-group-row"><input type="number" class="input-gasto-monto" oninput="calcularCierreFinanciero()"><button onclick="this.closest('.dynamic-row').remove();calcularCierreFinanciero();">X</button></div>`;
+    div.innerHTML = `<span style="font-size:12px;color:#94A3B8;">Motivo:</span><input type="text" class="input-gasto-motivo"><span style="font-size:12px;color:#94A3B8;">Monto:</span><div class="input-group-row"><input type="number" class="input-gasto-monto" oninput="calcularCierreFinanciero()"><button onclick="this.closest('.dynamic-row').remove();calcularCierreFinanciero();" style="background:#EF4444;color:white;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;">X</button></div>`;
     container.appendChild(div);
 }
 
@@ -238,7 +219,7 @@ window.agregarSalario = function() {
     const container = document.getElementById('salariosContainer');
     const div = document.createElement('div');
     div.className = 'dynamic-row';
-    div.innerHTML = `<span style="font-size:12px;color:#94A3B8;">Nombre:</span><input type="text" class="input-salario-nombre"><span style="font-size:12px;color:#94A3B8;">Salario:</span><div class="input-group-row"><input type="number" class="input-salario-monto" oninput="calcularCierreFinanciero()"><button onclick="this.closest('.dynamic-row').remove();calcularCierreFinanciero();">X</button></div>`;
+    div.innerHTML = `<span style="font-size:12px;color:#94A3B8;">Nombre:</span><input type="text" class="input-salario-nombre"><span style="font-size:12px;color:#94A3B8;">Salario:</span><div class="input-group-row"><input type="number" class="input-salario-monto" oninput="calcularCierreFinanciero()"><button onclick="this.closest('.dynamic-row').remove();calcularCierreFinanciero();" style="background:#EF4444;color:white;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;">X</button></div>`;
     container.appendChild(div);
 }
 
@@ -266,6 +247,7 @@ window.calcularCierreFinanciero = function() {
     }
 }
 
+// Guardar Cuadre Completo y Mostrar Modal Estilizado
 window.guardarCuadreFinal = async function() {
     const ahora = new Date();
     const hora = ahora.getHours();
@@ -275,43 +257,214 @@ window.guardarCuadreFinal = async function() {
     document.querySelectorAll('tr[data-index]').forEach(row => {
         const nombre = row.dataset.nombre;
         const pInfo = productosMapCache[nombre];
+        const venta = parseFloat(row.querySelector('[id^="venta-"]').innerText) || 0;
+        const pVenta = pInfo?.precioVenta || 0;
+        const pCompra = pInfo?.precioCompra || 0;
+
         detalle.push({
             nombre,
             inicio: row.querySelector('.input-inicio').value || 0,
             entrada: row.querySelector('.input-entrada').value || 0,
             baja: row.querySelector('.input-baja').value || 0,
             final: row.querySelector('.input-final').value || 0,
-            venta: row.querySelector('[id^="venta-"]').innerText,
-            totalVenta: row.querySelector('[id^="totalVenta-"]').innerText,
-            // 👉 GUARDAMOS DATOS FINANCIEROS SIEMPRE (Aunque Yoandri no los vea) 👈
-            precioCompra: pInfo?.precioCompra || 0,
-            precioVenta: pInfo?.precioVenta || 0,
-            gananciaT: (parseFloat(row.querySelector('[id^="venta-"]').innerText) * (pInfo?.precioVenta - pInfo?.precioCompra)) || 0
+            venta: venta,
+            precioCompra: pCompra,
+            precioVenta: pVenta,
+            totalVenta: venta * pVenta,
+            gananciaU: pVenta - pCompra,
+            gananciaT: venta * (pVenta - pCompra)
         });
+    });
+
+    // Recopilar Gastos y Salarios detallados
+    let gastosArr = [];
+    document.querySelectorAll('#gastosContainer .dynamic-row').forEach(r => {
+        const motivo = r.querySelector('.input-gasto-motivo')?.value || "General";
+        const monto = parseFloat(r.querySelector('.input-gasto-monto')?.value) || 0;
+        if(monto > 0) gastosArr.push({ motivo, monto });
+    });
+
+    let salariosArr = [];
+    document.querySelectorAll('#salariosContainer .dynamic-row').forEach(r => {
+        const persona = r.querySelector('.input-salario-nombre')?.value || "Personal";
+        const monto = parseFloat(r.querySelector('.input-salario-monto')?.value) || 0;
+        if(monto > 0) salariosArr.push({ persona, monto });
+    });
+
+    let transfArr = [];
+    document.querySelectorAll('.input-transf').forEach(i => {
+        if(i.value) transfArr.push(parseFloat(i.value));
     });
 
     const datos = {
         usuario: currentUserName,
         turno: nombreTurno,
+        fecha: ahora.toLocaleString(),
         timestamp: serverTimestamp(),
         productos: detalle,
-        efectivo: document.getElementById('efectivoCaja').value,
-        totalVenta: document.getElementById('lblVentaTotal').innerText,
-        totalFinal: document.getElementById('lblFinal').innerText
+        financiero: {
+            efectivo: document.getElementById('efectivoCaja').value || 0,
+            transferencias: transfArr,
+            gastos: gastosArr,
+            salarios: salariosArr,
+            ventaTotal: document.getElementById('lblVentaTotal').innerText,
+            totalFinal: document.getElementById('lblFinal').innerText
+        },
+        leidoNotificacion: false
     };
 
     try {
         await addDoc(collection(db, "historial_cuadres"), datos);
-        await addDoc(collection(db, "notificaciones"), { leido: false, msg: `Nuevo cuadre de ${currentUserName}`, time: serverTimestamp() });
-        alert("Cuadre Guardado (Se sincronizará automáticamente al detectar internet)");
-        cancelarCuadre();
-    } catch (e) { alert("Error al guardar localmente."); }
+        await addDoc(collection(db, "notificaciones"), { 
+            leido: false, 
+            msg: `Nuevo cuadre realizado por ${currentUserName} (${nombreTurno})`, 
+            time: serverTimestamp() 
+        });
+        
+        // Mostrar Modal Estilizado en lugar de alert
+        document.getElementById('customModal').style.display = 'flex';
+    } catch (e) {
+        alert("Error al guardar localmente.");
+    }
 }
 
+window.cerrarModalCustom = function() {
+    document.getElementById('customModal').style.display = 'none';
+    cancelarCuadre();
+}
+
+// --- GESTIÓN DE LA CAMPANITA Y NOTIFICACIONES ---
 window.verificarNotificacionesPendientes = async function() {
-    const q = query(collection(db, "notificaciones"), where("leido", "==", false));
-    const snap = await getDocs(q);
-    document.getElementById('contadorCampanita').innerText = snap.size;
+    try {
+        const q = query(collection(db, "notificaciones"), where("leido", "==", false));
+        const snap = await getDocs(q);
+        document.getElementById('contadorCampanita').innerText = snap.size;
+    } catch(e) {}
+}
+
+window.verNotificaciones = async function() {
+    const modal = document.getElementById('modalNotificaciones');
+    const container = document.getElementById('listaNotificacionesContainer');
+    modal.style.display = 'flex';
+    container.innerHTML = '<p style="color:#94A3B8; text-align:center;">Cargando...</p>';
+
+    try {
+        const q = query(collection(db, "notificaciones"));
+        const snap = await getDocs(q);
+        let html = '';
+        
+        snap.forEach(docSnap => {
+            const n = docSnap.data();
+            html += `<div style="background:rgba(15,23,42,0.6); padding:10px; border-radius:8px; margin-bottom:8px; border-left:4px solid ${n.leido ? '#64748b' : '#10B981'};">
+                <p style="color:#F8FAFC; font-size:0.9rem; font-weight:500;">${n.msg}</p>
+                <span style="color:#64748b; font-size:0.75rem;">${n.time ? new Date(n.time.seconds * 1000).toLocaleString() : 'Pendiente de sinc.'}</span>
+            </div>`;
+        });
+        container.innerHTML = html || '<p style="color:#94A3B8; text-align:center;">No hay notificaciones.</p>';
+    } catch(e) {
+        container.innerHTML = '<p style="color:#EF4444; text-align:center;">Error al cargar.</p>';
+    }
+}
+
+window.cerrarModalNotificaciones = async function() {
+    document.getElementById('modalNotificaciones').style.display = 'none';
+    // Marcar como leídas
+    try {
+        const q = query(collection(db, "notificaciones"), where("leido", "==", false));
+        const snap = await getDocs(q);
+        snap.forEach(async (d) => {
+            await updateDoc(doc(db, "notificaciones", d.id), { leido: true });
+        });
+        verificarNotificacionesPendientes();
+    } catch(e){}
+}
+
+// --- HISTORIAL DE CUADRES ---
+window.verHistorial = async function() {
+    document.getElementById('mainApp').classList.remove('active');
+    document.getElementById('historialSection').classList.add('active');
+    const container = document.getElementById('listaHistorialContainer');
+    container.innerHTML = '<p style="text-align:center; color:#94A3B8;">Cargando historial...</p>';
+
+    try {
+        const querySnapshot = await getDocs(collection(db, "historial_cuadres"));
+        let html = '';
+        
+        querySnapshot.forEach((docSnap) => {
+            const h = docSnap.data();
+            html += `<div onclick="verDetalleCuadre('${docSnap.id}')" style="background:rgba(30,41,59,0.7); border:1px solid rgba(255,255,255,0.1); padding:12px; border-radius:10px; margin-bottom:10px; cursor:pointer;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <strong style="color:#10B981;">${h.usuario}</strong>
+                    <span style="color:#94A3B8; font-size:0.8rem;">${h.fecha || 'Sin fecha'}</span>
+                </div>
+                <p style="color:#F8FAFC; font-size:0.9rem;">Turno: ${h.turno}</p>
+                <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:0.85rem; color:#cbd5e1;">
+                    <span>Venta: ${h.financiero?.ventaTotal || h.totalVenta}</span>
+                    <span>Final: ${h.financiero?.totalFinal || h.totalFinal}</span>
+                </div>
+            </div>`;
+        });
+        container.innerHTML = html || '<p style="text-align:center; color:#94A3B8;">No hay cuadres guardados aún.</p>';
+    } catch(e) {
+        container.innerHTML = '<p style="text-align:center; color:#EF4444;">Error al cargar el historial.</p>';
+    }
+}
+
+window.cerrarHistorial = function() {
+    document.getElementById('historialSection').classList.remove('active');
+    document.getElementById('mainApp').classList.add('active');
+}
+
+window.volverAlHistorial = function() {
+    document.getElementById('detalleCuadreSection').classList.remove('active');
+    document.getElementById('historialSection').classList.add('active');
+}
+
+// Ver Detalle Completo de un Cuadre del Historial (Con Columnas Ocultas Visibles para Administradoras)
+window.verDetalleCuadre = async function(id) {
+    document.getElementById('historialSection').classList.remove('active');
+    document.getElementById('detalleCuadreSection').classList.add('active');
+    const container = document.getElementById('detalleContenidoContainer');
+    container.innerHTML = '<p style="text-align:center; color:#94A3B8; padding:20px;">Cargando detalle completo...</p>';
+
+    try {
+        const docRef = doc(db, "historial_cuadres", id);
+        const docSnap = await getDoc(docRef);
+
+        if(docSnap.exists()) {
+            const h = docSnap.data();
+            document.getElementById('detalleTituloTurno').innerText = `Turno: ${h.turno}`;
+            document.getElementById('detalleSubInfo').innerText = `Responsable: ${h.usuario} (${h.fecha})`;
+
+            let html = '<table style="width:100%; border-collapse:collapse; background:white; color:#0f172a; font-size:12px;">';
+            html += '<tr style="background:#1e293b; color:white; text-align:center;">';
+            html += '<th style="padding:8px; text-align:left;">PRODUCTO</th><th>INICIO</th><th>ENTRADA</th><th>BAJA</th><th>FINAL</th><th>VENTA</th><th>P. COMPRA</th><th>P. VENTA</th><th>TOTAL VENTA</th><th>GANANCIA U</th><th>GANANCIA T</th>';
+            html += '</tr>';
+
+            if(h.productos && h.productos.length > 0) {
+                h.productos.forEach(p => {
+                    html += `<tr style="border-bottom:1px solid #e2e8f0; text-align:center;">`;
+                    html += `<td style="padding:6px; text-align:left; font-weight:500;">${p.nombre}</td>`;
+                    html += `<td>${p.inicio}</td><td>${p.entrada}</td><td>${p.baja}</td><td>${p.final}</td><td style="font-weight:bold;">${p.venta}</td>`;
+                    html += `<td>$${p.precioCompra || 0}</td><td>$${p.precioVenta || 0}</td><td style="color:#059669; font-weight:bold;">$${p.totalVenta}</td>`;
+                    html += `<td style="color:#047857;">$${p.gananciaU || 0}</td><td style="color:#047857; font-weight:bold;">$${p.gananciaT || 0}</td>`;
+                    html += `</tr>`;
+                });
+            }
+            html += '</table>';
+
+            // Añadir resumen financiero abajo
+            html += `<div style="background:#f8fafc; padding:15px; margin-top:15px; border-radius:8px; color:#0f172a; font-size:13px;">`;
+            html += `<p><strong>Efectivo en Caja:</strong> $${h.financiero?.efectivo || 0}</p>`;
+            html += `<p><strong>Venta Total:</strong> ${h.financiero?.ventaTotal || h.totalVenta}</p>`;
+            html += `<p><strong>Total Final:</strong> ${h.financiero?.totalFinal || h.totalFinal}</p>`;
+            html += `</div>`;
+
+            container.innerHTML = html;
+        }
+    } catch(e) {
+        container.innerHTML = '<p style="text-align:center; color:#EF4444; padding:20px;">Error al cargar el detalle.</p>';
+    }
 }
 
 window.cancelarCuadre = function() {
@@ -319,6 +472,7 @@ window.cancelarCuadre = function() {
     document.getElementById('mainApp').classList.add('active');
 }
 
-// Exponer funciones globales
+window.verAlmacen = function() { alert("Control de almacén en construcción."); }
+
 window.selectUser = selectUser; window.goBack = goBack; window.logout = logout; window.verifyPin = verifyPin;
 window.iniciarCuadre = iniciarCuadre; window.cancelarCuadre = cancelarCuadre;
