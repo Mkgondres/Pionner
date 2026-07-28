@@ -21,6 +21,14 @@ enableIndexedDbPersistence(db).catch(() => {});
 let currentUser = '';
 let currentUserName = '';
 
+// FILTRO PARA CORREGIR LOS TURNOS VIEJOS GUARDADOS EN FIREBASE
+function limpiarNombreTurno(turnoStr) {
+    if (!turnoStr) return "Turno Desconocido";
+    if (turnoStr === "Cierre Noche") return "Turno de Noche";
+    if (turnoStr === "Cierre Día") return "Turno de Día";
+    return turnoStr.replace("Cierre ", "").trim();
+}
+
 function showMessage(text, type) {
     const msgBox = document.getElementById('feedbackMessage');
     if (msgBox) {
@@ -140,7 +148,7 @@ window.iniciarCuadre = async function() {
             if (data.nombre) productosMapCache[data.nombre.trim()] = data;
         });
 
-        // BÚSQUEDA DEL INICIO AUTOMÁTICO
+        // Habilitar Inicio Automático bloqueado
         let ultimosValoresFinales = {};
         try {
             const histRef = collection(db, "historial_cuadres");
@@ -156,7 +164,7 @@ window.iniciarCuadre = async function() {
                 }
             }
         } catch(err) {
-            console.log("Error al buscar inicio automático:", err);
+            console.log("Error al buscar inicio:", err);
         }
 
         let html = '<table><tr><th>PRODUCTO</th><th>INICIO</th><th>ENTRADA</th><th>BAJA</th><th>FINAL</th><th>VENTA</th>';
@@ -185,15 +193,16 @@ window.iniciarCuadre = async function() {
             html += `<tr class="${filaClase}" data-index="${idx}" data-nombre="${p.nombre}">`;
             html += `<td>${p.nombre}</td>`;
             
+            // LA CLAVE AQUÍ ES QUE ESTOS INPUTS TIENEN WIDTH: 50px
             if (esHeredado) {
-                html += `<td><input type="number" class="input-cell input-inicio" value="${valorInicioPrevio}" readonly oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+                html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px; background-color: #cbd5e1; color: #0f172a;" value="${valorInicioPrevio}" readonly oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             } else {
-                html += `<td><input type="number" class="input-cell input-inicio" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+                html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             }
 
-            html += `<td><input type="number" class="input-cell input-entrada" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td><input type="number" class="input-cell input-baja" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td><input type="number" class="input-cell input-final" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-entrada" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-baja" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-final" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             html += `<td style="font-weight: bold;" id="venta-${idx}">0</td>`;
             if (!esYoandri) html += `<td>$${p.precioCompra}</td>`;
             html += `<td style="font-weight: bold;">$${p.precioVenta}</td>`;
@@ -206,7 +215,6 @@ window.iniciarCuadre = async function() {
         });
         container.innerHTML = html + '</table>';
 
-        // Recalcular los heredados automáticamente al cargar
         document.querySelectorAll('tr[data-index]').forEach(row => {
             const idx = row.dataset.index;
             const nom = row.dataset.nombre;
@@ -297,7 +305,7 @@ window.guardarCuadreFinal = async function() {
 
     const ahora = new Date();
     const hora = ahora.getHours();
-    let nombreTurno = (hora >= 6 && hora < 14) ? "Turno de Noche" : "Turno de Día"; // Nombre limpio
+    let nombreTurno = (hora >= 6 && hora < 18) ? "Turno de Día" : "Turno de Noche"; // Formato Nuevo Limpio
 
     let detalle = [];
     let gananciaBrutaTotal = 0;
@@ -381,7 +389,7 @@ window.guardarCuadreFinal = async function() {
         });
 
         if(duplicado) {
-            alert("⚠️ Este cuadre ya fue guardado anteriormente.");
+            alert("⚠️ Este cuadre ya fue guardado anteriormente con los mismos valores.");
             if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = "Guardar Cuadre"; }
             return;
         }
@@ -429,8 +437,9 @@ window.verNotificaciones = async function() {
         
         snap.forEach(docSnap => {
             const n = docSnap.data();
+            const nombreTurnoLimpio = limpiarNombreTurno(n.turno);
             html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer;">
-                <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 ${n.msg}</p>
+                <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 Yoandri envió cuadre nuevo (${nombreTurnoLimpio})</p>
                 <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver el cuadre y cerrar la alerta</span>
             </div>`;
         });
@@ -467,12 +476,13 @@ window.verHistorial = async function() {
         
         querySnapshot.forEach((docSnap) => {
             const h = docSnap.data();
+            const nombreTurnoLimpio = limpiarNombreTurno(h.turno); // Aplica el filtro para borrar "Cierre" viejo
             html += `<div onclick="verDetalleCuadre('${docSnap.id}')" style="background:rgba(30,41,59,0.7); border:1px solid rgba(255,255,255,0.1); padding:12px; border-radius:10px; margin-bottom:10px; cursor:pointer;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                     <strong style="color:#10B981;">${h.usuario}</strong>
                     <span style="color:#94A3B8; font-size:0.8rem;">${h.fecha || 'Sin fecha'}</span>
                 </div>
-                <p style="color:#F8FAFC; font-size:0.9rem;">Turno: ${h.turno}</p>
+                <p style="color:#F8FAFC; font-size:0.9rem;">Turno: ${nombreTurnoLimpio}</p>
                 <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:0.85rem; color:#cbd5e1;">
                     <span>Venta: ${h.financiero?.ventaTotal}</span>
                     <span>Final: ${h.financiero?.totalFinal}</span>
@@ -509,42 +519,60 @@ window.verDetalleCuadre = async function(id) {
 
         if(docSnap.exists()) {
             const h = docSnap.data();
-            document.getElementById('detalleTituloTurno').innerText = `Turno: ${h.turno}`;
+            const nombreTurnoLimpio = limpiarNombreTurno(h.turno); // Aplica el filtro para borrar "Cierre" viejo
+            document.getElementById('detalleTituloTurno').innerText = `Turno: ${nombreTurnoLimpio}`;
             document.getElementById('detalleSubInfo').innerText = `Responsable: ${h.usuario} (${h.fecha})`;
 
-            // TABLA LIMPIA USANDO LAS CLASES DEL CSS
-            let html = '<table>';
+            // TABLA IDÉNTICA CLONADA VISUALMENTE
+            let html = '<table style="width: 100%; min-width: 800px; border-collapse: collapse; background: #ffffff; color: #0f172a;">';
             html += '<tr>';
-            html += '<th>PRODUCTO</th><th>INICIO</th><th>ENTRADA</th><th>BAJA</th><th>FINAL</th><th>VENTA</th>';
-            if (!esYoandri) html += '<th>PRECIO COMP</th>';
-            html += '<th>PRECIO VNTA</th><th>TOTAL VNTA</th>';
+            html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: left; left: 0; z-index: 51;">PRODUCTO</th>';
+            html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">INICIO</th>';
+            html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">ENTRADA</th>';
+            html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">BAJA</th>';
+            html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">FINAL</th>';
+            html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">VENTA</th>';
+            if (!esYoandri) html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">PRECIO COMP</th>';
+            html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">PRECIO VNTA</th>';
+            html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">TOTAL VNTA</th>';
             if (!esYoandri) {
-                html += '<th>GANANCIA U</th><th>GANANCIA T</th>';
+                html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">GANANCIA U</th>';
+                html += '<th style="position: sticky; top: 0; background: #1e293b; color: #ffffff; z-index: 50; padding: 12px 8px; font-size: 11px; text-align: center;">GANANCIA T</th>';
             }
             html += '</tr>';
 
             if(h.productos && h.productos.length > 0) {
                 let filaAlternada = false;
+                
+                // ESTA ES LA "CAJITA" FALSA PARA QUE LOS NÚMEROS TENGAN EL MISMO ANCHO (50px) Y SE VEAN IGUAL DE AMPLIOS QUE LOS INPUTS ORIGINALES
+                const cajitaFakeCSS = "width: 50px; text-align: center; margin: 0 auto; font-weight: bold; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 0; color: #0f172a; display: block;";
+
                 h.productos.forEach(p => {
                     const filaClase = filaAlternada ? 'row-alt' : 'row-normal';
                     filaAlternada = !filaAlternada;
 
                     html += `<tr class="${filaClase}">`;
-                    html += `<td>${p.nombre}</td>`;
-                    html += `<td>${p.inicio}</td><td>${p.entrada}</td><td>${p.baja}</td><td>${p.final}</td><td style="font-weight:bold;">${p.venta}</td>`;
+                    html += `<td style="padding: 8px 6px; text-align: left; font-weight: 500;">${p.nombre}</td>`;
+                    html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.inicio}</div></td>`;
+                    html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.entrada}</div></td>`;
+                    html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.baja}</div></td>`;
+                    html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.final}</div></td>`;
+                    html += `<td style="padding: 8px 6px; text-align: center; font-weight: bold;">${p.venta}</td>`;
                     
-                    if (!esYoandri) html += `<td>$${p.precioCompra || 0}</td>`;
-                    html += `<td style="font-weight: bold;">$${p.precioVenta || 0}</td><td style="color:#059669; font-weight:bold;">$${p.totalVenta}</td>`;
+                    if (!esYoandri) html += `<td style="padding: 8px 6px; text-align: center;">$${p.precioCompra || 0}</td>`;
+                    html += `<td style="padding: 8px 6px; text-align: center; font-weight: bold;">$${p.precioVenta || 0}</td>`;
+                    html += `<td style="padding: 8px 6px; text-align: center; color:#059669; font-weight:bold;">$${p.totalVenta}</td>`;
                     
                     if (!esYoandri) {
-                        html += `<td style="color:#047857;">$${p.gananciaU || 0}</td><td style="color:#047857; font-weight:bold;">$${p.gananciaT || 0}</td>`;
+                        html += `<td style="padding: 8px 6px; text-align: center; color:#047857;">$${p.gananciaU || 0}</td>`;
+                        html += `<td style="padding: 8px 6px; text-align: center; color:#047857; font-weight:bold;">$${p.gananciaT || 0}</td>`;
                     }
                     html += `</tr>`;
                 });
             }
             html += '</table>';
 
-            // DATOS FINANCIEROS
+            // DATOS FINANCIEROS Y RESTO DEL DESGLOSE (Oculto parcial para Yoandri y sin textos "motivo/persona")
             const fin = h.financiero || {};
             let ventaTotalNum = parseFloat((fin.ventaTotal || "0").replace(/[^0-9.]/g, '')) || 0;
             let efectivoNum = parseFloat(fin.efectivo || 0) || 0;
@@ -561,7 +589,7 @@ window.verDetalleCuadre = async function(id) {
                 h.productos.forEach(p => { gananciaBrutaNum += (parseFloat(p.gananciaT) || 0); });
             }
 
-            // SECCIÓN 1: DATOS (Textos limpios)
+            // SECCIÓN 1: DATOS 
             html += `<div style="background:#f8fafc; padding:15px; margin-top:15px; border-radius:8px; color:#0f172a; font-size:13px; border:1px solid #cbd5e1; text-align: left;">`;
             html += `<h4 style="margin-bottom:10px; border-bottom:2px solid #1e293b; padding-bottom:5px; color:#1e293b; font-size:15px;">Desglose Financiero</h4>`;
             html += `<h5 style="color:#0f766e; margin-bottom:6px; font-size:13px; text-transform:uppercase;">Datos:</h5>`;
