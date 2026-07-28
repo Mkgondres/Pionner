@@ -219,6 +219,16 @@ body {
     margin-top: 20px;
 }
 
+/* --- TABLA FLUIDA CON SCROLL INTERNO Y ENCABEZADOS FIJOS (STICKY) --- */
+#listaProductosContainer {
+    position: relative;
+    max-height: 480px;
+    overflow-y: auto;
+    overflow-x: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
 #listaProductosContainer table {
     width: 100%;
     border-collapse: collapse;
@@ -231,14 +241,17 @@ body {
     top: 0;
     background: #1e293b !important;
     color: #ffffff !important;
-    z-index: 20;
+    z-index: 50;
     padding: 12px 8px;
     font-size: 11px;
     text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 #listaProductosContainer th:first-child {
     text-align: left;
+    left: 0;
+    z-index: 51;
 }
 
 #listaProductosContainer td {
