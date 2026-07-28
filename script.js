@@ -280,8 +280,15 @@ window.calcularCierreFinanciero = function() {
     let totalFinal = ventaTotal - trans - gastos - salarios;
     let efectivoReal = efectivo - salarios;
 
+    // Actualiza Venta Total y Final
     document.getElementById('lblVentaTotal').innerText = ventaTotal + " CUP";
     document.getElementById('lblFinal').innerText = totalFinal + " CUP";
+
+    // Actualiza Efectivo Recaudado en vivo en la pantalla
+    const lblRecaudado = document.getElementById('lblEfectivoRecaudado');
+    if(lblRecaudado) {
+        lblRecaudado.innerText = efectivoReal + " CUP";
+    }
 
     const res = document.getElementById('lblResultadoDiferencia');
     let diff = efectivoReal - totalFinal;
@@ -391,10 +398,8 @@ window.guardarCuadreFinal = async function() {
             return;
         }
 
-        // GUARDAMOS EL CUADRE Y RECUPERAMOS EL ID
         const nuevoCuadreRef = await addDoc(collection(db, "historial_cuadres"), datos);
         
-        // GUARDAMOS LA NOTIFICACIÓN INCLUYENDO EL ID DIRECTO DEL CUADRE
         await addDoc(collection(db, "notificaciones"), { 
             leido: false, 
             msg: `Yoandri envió cuadre nuevo (${nombreTurno} - ${ahora.toLocaleDateString()})`, 
@@ -439,7 +444,6 @@ window.verNotificaciones = async function() {
         snap.forEach(docSnap => {
             const n = docSnap.data();
             const nombreTurnoLimpio = limpiarNombreTurno(n.turno);
-            // AL TOCAR LA NOTIFICACIÓN, ENVÍA EL ID DIRECTO DEL CUADRE
             html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}', '${n.cuadreId}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer;">
                 <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 Yoandri envió cuadre nuevo (${nombreTurnoLimpio})</p>
                 <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver el cuadre directo y cerrar la alerta</span>
@@ -451,17 +455,20 @@ window.verNotificaciones = async function() {
     }
 }
 
-// ATAJO MEJORADO: TE LLEVA DIRECTO AL DETALLE Y AL VIRAR ATRÁS CAES EN EL HISTORIAL
+// LÓGICA DE NAVEGACIÓN DIRECTA FORZADA
 window.abrirAtajoNotificacion = async function(notifId, cuadreId) {
     try {
         await deleteDoc(doc(db, "notificaciones", notifId));
         document.getElementById('modalNotificaciones').style.display = 'none';
         verificarNotificacionesPendientes();
         
-        if (cuadreId && cuadreId !== 'undefined') {
+        if (cuadreId && cuadreId !== 'undefined' && cuadreId !== 'null') {
+            // Fuerza a esconder la app principal y el historial
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            // Carga el detalle directamente
             verDetalleCuadre(cuadreId);
         } else {
-            verHistorial(); // Solo por si era una notificación muy vieja que no tenía el ID
+            verHistorial(); 
         }
     } catch(e) {
         alert("Error al procesar el atajo.");
@@ -472,10 +479,10 @@ window.cerrarModalNotificaciones = function() {
     document.getElementById('modalNotificaciones').style.display = 'none';
 }
 
-// HISTORIAL ORGANIZADO POR FECHAS (ACORDEÓN)
 window.verHistorial = async function() {
-    document.getElementById('mainApp').classList.remove('active');
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('historialSection').classList.add('active');
+    
     const container = document.getElementById('listaHistorialContainer');
     container.innerHTML = '<p style="text-align:center; color:#94A3B8;">Cargando historial...</p>';
 
@@ -485,7 +492,6 @@ window.verHistorial = async function() {
         
         const gruposPorFecha = {};
         
-        // Agrupando los cuadres por el día exacto
         querySnapshot.forEach((docSnap) => {
             const h = docSnap.data();
             const fechaCompleta = h.fecha || 'Sin fecha';
@@ -502,7 +508,7 @@ window.verHistorial = async function() {
         
         for (const [date, cuadres] of Object.entries(gruposPorFecha)) {
             const isFirst = (groupIdx === 0);
-            const displayStyle = isFirst ? 'block' : 'none'; // El día más reciente abierto por defecto
+            const displayStyle = isFirst ? 'block' : 'none'; 
             const icon = isFirst ? '▲' : '▼';
             
             html += `
@@ -544,7 +550,6 @@ window.verHistorial = async function() {
     }
 }
 
-// Función para abrir y cerrar el acordeón del historial
 window.toggleDateGroup = function(idx) {
     const el = document.getElementById('content-group-' + idx);
     const icon = document.getElementById('icon-group-' + idx);
@@ -558,18 +563,19 @@ window.toggleDateGroup = function(idx) {
 }
 
 window.cerrarHistorial = function() {
-    document.getElementById('historialSection').classList.remove('active');
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('mainApp').classList.add('active');
 }
 
 window.volverAlHistorial = function() {
-    document.getElementById('detalleCuadreSection').classList.remove('active');
-    document.getElementById('historialSection').classList.add('active');
+    verHistorial(); 
 }
 
 window.verDetalleCuadre = async function(id) {
-    document.getElementById('historialSection').classList.remove('active');
+    // Fuerzo esconder todas las pantallas y mostrar solo el detalle
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('detalleCuadreSection').classList.add('active');
+    
     const container = document.getElementById('detalleContenidoContainer');
     container.innerHTML = '<p style="text-align:center; color:#94A3B8; padding:20px;">Cargando detalle completo...</p>';
 
@@ -582,7 +588,7 @@ window.verDetalleCuadre = async function(id) {
         if(docSnap.exists()) {
             const h = docSnap.data();
             const nombreTurnoLimpio = limpiarNombreTurno(h.turno);
-            // AHORA EL TÍTULO ES DIRECTAMENTE EL NOMBRE (Sin "Turno: ")
+            
             document.getElementById('detalleTituloTurno').innerText = nombreTurnoLimpio;
             document.getElementById('detalleSubInfo').innerText = `Responsable: ${h.usuario} (${h.fecha})`;
 
