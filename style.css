@@ -219,8 +219,8 @@ body {
     margin-top: 20px;
 }
 
-/* --- TABLA FLUIDA CON SCROLL INTERNO Y ENCABEZADOS FIJOS (STICKY) --- */
-#listaProductosContainer {
+/* --- TABLAS FLUIDAS Y ENCABEZADOS FIJOS (STICKY) --- */
+#listaProductosContainer, #detalleContenidoContainer {
     position: relative;
     max-height: 480px;
     overflow-y: auto;
@@ -229,18 +229,19 @@ body {
     border-radius: 8px;
 }
 
-#listaProductosContainer table {
+#listaProductosContainer table, #detalleContenidoContainer table {
     width: 100%;
+    min-width: 800px; /* Fuerza el ancho para que no se apriete */
     border-collapse: collapse;
-    background: #ffffff !important;
-    color: #0f172a !important;
+    background: #ffffff;
+    color: #0f172a;
 }
 
-#listaProductosContainer th {
+#listaProductosContainer th, #detalleContenidoContainer th {
     position: sticky;
     top: 0;
-    background: #1e293b !important;
-    color: #ffffff !important;
+    background: #1e293b;
+    color: #ffffff;
     z-index: 50;
     padding: 12px 8px;
     font-size: 11px;
@@ -248,26 +249,42 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-#listaProductosContainer th:first-child {
+#listaProductosContainer th:first-child, #detalleContenidoContainer th:first-child {
     text-align: left;
     left: 0;
     z-index: 51;
 }
 
-#listaProductosContainer td {
-    color: #0f172a !important;
+#listaProductosContainer td, #detalleContenidoContainer td {
+    color: #0f172a;
     padding: 8px 6px;
     border-bottom: 1px solid #e2e8f0;
     font-size: 13px;
+    text-align: center;
 }
 
+#listaProductosContainer td:first-child, #detalleContenidoContainer td:first-child {
+    text-align: left;
+    font-weight: 500;
+}
+
+/* Clases para alternar colores de las filas */
+.row-alt { background-color: #f1f5f9; }
+.row-normal { background-color: #ffffff; }
+
 #listaProductosContainer input.input-cell {
-    background: #f8fafc !important;
-    color: #0f172a !important;
-    border: 1px solid #cbd5e1 !important;
+    background: #f8fafc;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
     border-radius: 6px;
     text-align: center;
     font-weight: bold;
+    width: 50px;
+}
+
+#listaProductosContainer input.input-inicio[readonly] {
+    background-color: #cbd5e1;
+    color: #0f172a;
 }
 
 .dynamic-row {
@@ -290,8 +307,8 @@ body {
 .dynamic-row input {
     width: 100%;
     padding: 8px 10px;
-    background: rgba(15, 23, 42, 0.8) !important;
-    color: #F8FAFC !important;
+    background: rgba(15, 23, 42, 0.8);
+    color: #F8FAFC;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 6px;
     font-size: 14px;
@@ -301,3 +318,4 @@ body {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
