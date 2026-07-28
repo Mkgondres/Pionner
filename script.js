@@ -140,7 +140,7 @@ window.iniciarCuadre = async function() {
             if (data.nombre) productosMapCache[data.nombre.trim()] = data;
         });
 
-        // Buscar el ÚLTIMO cuadre guardado para heredar la columna "Inicio" de forma real
+        // BÚSQUEDA DEL INICIO AUTOMÁTICO
         let ultimosValoresFinales = {};
         try {
             const histRef = collection(db, "historial_cuadres");
@@ -170,42 +170,43 @@ window.iniciarCuadre = async function() {
 
         ORDEN_MAESTRO.forEach((item) => {
             if (item.startsWith("***")) {
-                html += `<tr style="background: #334155; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 10px; color: #f8fafc;">${item}</td></tr>`;
+                html += `<tr style="background: #334155; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 10px; color: #f8fafc; text-align: center;">${item}</td></tr>`;
                 filaAlternada = false;
                 return;
             }
             const p = productosMapCache[item] || { nombre: item, precioVenta: 0, precioCompra: 0 };
             const idx = indexContador++;
-            const colorFondo = filaAlternada ? '#f1f5f9' : '#ffffff';
+            const filaClase = filaAlternada ? 'row-alt' : 'row-normal';
             filaAlternada = !filaAlternada;
 
             const valorInicioPrevio = ultimosValoresFinales[p.nombre.trim()];
             const esHeredado = (valorInicioPrevio !== undefined && valorInicioPrevio !== null && valorInicioPrevio !== "");
 
-            html += `<tr style="background-color: ${colorFondo};" data-index="${idx}" data-nombre="${p.nombre}">`;
-            html += `<td style="text-align: left;">${p.nombre}</td>`;
+            html += `<tr class="${filaClase}" data-index="${idx}" data-nombre="${p.nombre}">`;
+            html += `<td>${p.nombre}</td>`;
             
             if (esHeredado) {
-                html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px; background-color: #cbd5e1; color: #0f172a; font-weight: bold;" value="${valorInicioPrevio}" readonly oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+                html += `<td><input type="number" class="input-cell input-inicio" value="${valorInicioPrevio}" readonly oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             } else {
-                html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+                html += `<td><input type="number" class="input-cell input-inicio" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             }
 
-            html += `<td><input type="number" class="input-cell input-entrada" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td><input type="number" class="input-cell input-baja" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td><input type="number" class="input-cell input-final" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td id="venta-${idx}">0</td>`;
+            html += `<td><input type="number" class="input-cell input-entrada" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-baja" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-final" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td style="font-weight: bold;" id="venta-${idx}">0</td>`;
             if (!esYoandri) html += `<td>$${p.precioCompra}</td>`;
             html += `<td style="font-weight: bold;">$${p.precioVenta}</td>`;
-            html += `<td style="font-weight: bold; color: #059669;" id="totalVenta-${idx}">0</td>`;
+            html += `<td style="color: #059669; font-weight: bold;" id="totalVenta-${idx}">0</td>`;
             if (!esYoandri) {
-                html += `<td>$${(p.precioVenta - p.precioCompra)}</td>`;
-                html += `<td id="gananciaT-${idx}">0</td>`;
+                html += `<td style="color: #047857;">$${(p.precioVenta - p.precioCompra)}</td>`;
+                html += `<td style="color: #047857; font-weight: bold;" id="gananciaT-${idx}">0</td>`;
             }
             html += `</tr>`;
         });
         container.innerHTML = html + '</table>';
 
+        // Recalcular los heredados automáticamente al cargar
         document.querySelectorAll('tr[data-index]').forEach(row => {
             const idx = row.dataset.index;
             const nom = row.dataset.nombre;
@@ -287,7 +288,6 @@ window.calcularCierreFinanciero = function() {
     }
 }
 
-// GUARDAR CUADRE CON CANDADO ANTIDUPLICADOS Y BLOQUEO DE BOTÓN
 window.guardarCuadreFinal = async function() {
     const btnGuardar = document.querySelector('#cuadreSection .btn-primary');
     if (btnGuardar) {
@@ -297,7 +297,7 @@ window.guardarCuadreFinal = async function() {
 
     const ahora = new Date();
     const hora = ahora.getHours();
-    let nombreTurno = (hora >= 6 && hora < 14) ? "Turno de Noche" : "Turno de Día";
+    let nombreTurno = (hora >= 6 && hora < 14) ? "Turno de Noche" : "Turno de Día"; // Nombre limpio
 
     let detalle = [];
     let gananciaBrutaTotal = 0;
@@ -381,7 +381,7 @@ window.guardarCuadreFinal = async function() {
         });
 
         if(duplicado) {
-            alert("⚠️ Este cuadre ya fue guardado anteriormente con los mismos valores.");
+            alert("⚠️ Este cuadre ya fue guardado anteriormente.");
             if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = "Guardar Cuadre"; }
             return;
         }
@@ -408,7 +408,6 @@ window.cerrarModalCustom = function() {
     cancelarCuadre();
 }
 
-// --- GESTIÓN DE LA CAMPANITA CON ATAJO ÚNICO Y AUTODESTRUCCIÓN ---
 window.verificarNotificacionesPendientes = async function() {
     try {
         const q = query(collection(db, "notificaciones"), where("leido", "==", false));
@@ -430,7 +429,7 @@ window.verNotificaciones = async function() {
         
         snap.forEach(docSnap => {
             const n = docSnap.data();
-            html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer; transition:all 0.2s;">
+            html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer;">
                 <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 ${n.msg}</p>
                 <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver el cuadre y cerrar la alerta</span>
             </div>`;
@@ -456,7 +455,6 @@ window.cerrarModalNotificaciones = function() {
     document.getElementById('modalNotificaciones').style.display = 'none';
 }
 
-// --- HISTORIAL DE CUADRES ---
 window.verHistorial = async function() {
     document.getElementById('mainApp').classList.remove('active');
     document.getElementById('historialSection').classList.add('active');
@@ -497,7 +495,6 @@ window.volverAlHistorial = function() {
     document.getElementById('historialSection').classList.add('active');
 }
 
-// VER DETALLE CON PERMISOS DIFERENCIADOS (YOANDRI VS DUEÑAS) Y TABLA IDÉNTICA
 window.verDetalleCuadre = async function(id) {
     document.getElementById('historialSection').classList.remove('active');
     document.getElementById('detalleCuadreSection').classList.add('active');
@@ -515,46 +512,47 @@ window.verDetalleCuadre = async function(id) {
             document.getElementById('detalleTituloTurno').innerText = `Turno: ${h.turno}`;
             document.getElementById('detalleSubInfo').innerText = `Responsable: ${h.usuario} (${h.fecha})`;
 
-            // Tabla idéntica a la de llenado con alternancia de colores y cabeceras Sticky
-            let html = '<div style="max-height: 400px; overflow-y: auto;">';
-            html += '<table style="width:100%; border-collapse:collapse; background:white; color:#0f172a; font-size:12px;">';
-            html += '<tr style="background:#1e293b; color:white; text-align:center; position: sticky; top: 0; z-index: 10;">';
-            html += '<th style="padding:8px; text-align:left; background:#1e293b;">PRODUCTO</th><th style="background:#1e293b;">INICIO</th><th style="background:#1e293b;">ENTRADA</th><th style="background:#1e293b;">BAJA</th><th style="background:#1e293b;">FINAL</th><th style="background:#1e293b;">VENTA</th>';
-            if (!esYoandri) html += '<th style="background:#1e293b;">P. COMP</th>';
-            html += '<th style="background:#1e293b;">P. VNTA</th><th style="background:#1e293b;">TOTAL VNTA</th>';
-            if (!esYoandri) html += '<th style="background:#1e293b;">GANANCIA U</th><th style="background:#1e293b;">GANANCIA T</th>';
+            // TABLA LIMPIA USANDO LAS CLASES DEL CSS
+            let html = '<table>';
+            html += '<tr>';
+            html += '<th>PRODUCTO</th><th>INICIO</th><th>ENTRADA</th><th>BAJA</th><th>FINAL</th><th>VENTA</th>';
+            if (!esYoandri) html += '<th>PRECIO COMP</th>';
+            html += '<th>PRECIO VNTA</th><th>TOTAL VNTA</th>';
+            if (!esYoandri) {
+                html += '<th>GANANCIA U</th><th>GANANCIA T</th>';
+            }
             html += '</tr>';
 
             if(h.productos && h.productos.length > 0) {
-                let filaAltHist = false;
+                let filaAlternada = false;
                 h.productos.forEach(p => {
-                    const bgColHist = filaAltHist ? '#f1f5f9' : '#ffffff';
-                    filaAltHist = !filaAltHist;
+                    const filaClase = filaAlternada ? 'row-alt' : 'row-normal';
+                    filaAlternada = !filaAlternada;
 
-                    html += `<tr style="background-color: ${bgColHist}; border-bottom:1px solid #e2e8f0; text-align:center;">`;
-                    html += `<td style="padding:6px; text-align:left; font-weight:500;">${p.nombre}</td>`;
+                    html += `<tr class="${filaClase}">`;
+                    html += `<td>${p.nombre}</td>`;
                     html += `<td>${p.inicio}</td><td>${p.entrada}</td><td>${p.baja}</td><td>${p.final}</td><td style="font-weight:bold;">${p.venta}</td>`;
+                    
                     if (!esYoandri) html += `<td>$${p.precioCompra || 0}</td>`;
                     html += `<td style="font-weight: bold;">$${p.precioVenta || 0}</td><td style="color:#059669; font-weight:bold;">$${p.totalVenta}</td>`;
+                    
                     if (!esYoandri) {
                         html += `<td style="color:#047857;">$${p.gananciaU || 0}</td><td style="color:#047857; font-weight:bold;">$${p.gananciaT || 0}</td>`;
                     }
                     html += `</tr>`;
                 });
             }
-            html += '</table></div>';
+            html += '</table>';
 
-            // EXTRACCIÓN DE DATOS
+            // DATOS FINANCIEROS
             const fin = h.financiero || {};
             let ventaTotalNum = parseFloat((fin.ventaTotal || "0").replace(/[^0-9.]/g, '')) || 0;
             let efectivoNum = parseFloat(fin.efectivo || 0) || 0;
             
             let transfArr = fin.transferencias || [];
             let sumaTransf = transfArr.reduce((a, b) => a + b, 0);
-
             let gastosArr = fin.gastos || [];
             let sumaGastos = gastosArr.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
-
             let salariosArr = fin.salarios || [];
             let sumaSalarios = salariosArr.reduce((acc, s) => acc + (parseFloat(s.monto) || 0), 0);
 
@@ -563,19 +561,24 @@ window.verDetalleCuadre = async function(id) {
                 h.productos.forEach(p => { gananciaBrutaNum += (parseFloat(p.gananciaT) || 0); });
             }
 
-            // --- SECCIÓN 1: DATOS ---
-            html += `<div style="background:#f8fafc; padding:15px; margin-top:15px; border-radius:8px; color:#0f172a; font-size:13px; border:1px solid #cbd5e1;">`;
+            // SECCIÓN 1: DATOS (Textos limpios)
+            html += `<div style="background:#f8fafc; padding:15px; margin-top:15px; border-radius:8px; color:#0f172a; font-size:13px; border:1px solid #cbd5e1; text-align: left;">`;
             html += `<h4 style="margin-bottom:10px; border-bottom:2px solid #1e293b; padding-bottom:5px; color:#1e293b; font-size:15px;">Desglose Financiero</h4>`;
             html += `<h5 style="color:#0f766e; margin-bottom:6px; font-size:13px; text-transform:uppercase;">Datos:</h5>`;
             html += `<ul style="margin-left:15px; margin-bottom:10px; list-style-type:disc;">`;
             html += `<li><strong>Venta total:</strong> ${ventaTotalNum} CUP</li>`;
             html += `<li><strong>Efectivo en caja:</strong> ${efectivoNum} CUP</li>`;
-            html += `<li><strong>Transferencia${transfArr.length > 1 ? 's ('+transfArr.length+')' : ''}:</strong> ${sumaTransf} CUP</li>`;
+            
+            if (transfArr.length > 1) {
+                html += `<li><strong>Transferencias (${transfArr.length}):</strong> ${sumaTransf} CUP</li>`;
+            } else {
+                html += `<li><strong>Transferencias:</strong> ${sumaTransf} CUP</li>`;
+            }
             
             html += `<li><strong>Gastos del turno:</strong>`;
             if(gastosArr.length > 0) {
                 html += `<ul style="margin-left:20px; margin-top:3px;">`;
-                gastosArr.forEach(g => { html += `<li>Motivo: ${g.motivo} - ${g.monto} CUP</li>`; });
+                gastosArr.forEach(g => { html += `<li>${g.motivo} - ${g.monto} CUP</li>`; });
                 html += `</ul>`;
             } else {
                 html += ` Ninguno`;
@@ -585,20 +588,19 @@ window.verDetalleCuadre = async function(id) {
             html += `<li style="margin-top:5px;"><strong>Salarios pagados:</strong>`;
             if(salariosArr.length > 0) {
                 html += `<ul style="margin-left:20px; margin-top:3px;">`;
-                salariosArr.forEach(s => { html += `<li>Persona: ${s.persona} - ${s.monto} CUP</li>`; });
+                salariosArr.forEach(s => { html += `<li>${s.persona} - ${s.monto} CUP</li>`; });
                 html += `</ul>`;
             } else {
                 html += ` Ninguno`;
             }
             html += `</li>`;
 
-            // Ganancia Bruta oculta para Yoandri
             if (!esYoandri) {
                 html += `<li style="margin-top:5px;"><strong>Ganancia Bruta:</strong> ${gananciaBrutaNum} CUP</li>`;
             }
             html += `</ul>`;
 
-            // --- SECCIÓN 2: CÁLCULOS ---
+            // SECCIÓN 2: CÁLCULOS
             let finalCalculado = ventaTotalNum - sumaTransf - sumaGastos - sumaSalarios;
             let efectivoRecaudado = efectivoNum - sumaSalarios;
             let gananciaNeta = gananciaBrutaNum - sumaGastos - sumaSalarios;
@@ -615,7 +617,6 @@ window.verDetalleCuadre = async function(id) {
             html += `  <div>- ${sumaSalarios} &rarr; salarios</div>`;
             html += `  <div style="border-top:1px solid #0f172a; font-weight:bold; margin-top:2px; padding-top:2px;">= ${efectivoRecaudado} &rarr; Efectivo recaudado</div>`;
             
-            // Cálculo de ganancia neta oculto para Yoandri
             if (!esYoandri) {
                 html += `<br>`;
                 html += `  <div>${gananciaBrutaNum} &rarr; Ganancia Bruta</div>`;
@@ -625,7 +626,7 @@ window.verDetalleCuadre = async function(id) {
             }
             html += `</div>`;
 
-            // --- SECCIÓN 3: CONCLUSIONES ---
+            // SECCIÓN 3: CONCLUSIONES
             let diferenciaCaja = efectivoRecaudado - finalCalculado;
             let textoConclusionCaja = "";
             if (diferenciaCaja >= 0) {
@@ -640,7 +641,6 @@ window.verDetalleCuadre = async function(id) {
             html += `<ul style="margin-left:15px; margin-bottom:0; list-style-type:disc;">`;
             html += `<li>${textoConclusionCaja}</li>`;
             
-            // Segunda conclusión (Ganancia Neta y Porcentaje) oculta para Yoandri
             if (!esYoandri) {
                 html += `<li style="margin-top:4px;">Ganancia neta: ${gananciaNeta} CUP, este monto representa el ${porcentajeVenta}% de la venta.</li>`;
             }
