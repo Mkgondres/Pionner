@@ -105,15 +105,19 @@ window.configurarPantallaPrincipal = function(userId, userName) {
     document.getElementById('welcomeUserText').innerText = `Usuario activo: ${userName}`;
     const btnCuadre = document.getElementById('btnIniciarCuadre');
     const btnAjustes = document.getElementById('btnAjustesMenu');
+    const btnIpb = document.getElementById('btnIpbLimpio'); // Llamamos al botón nuevo
 
     if (userId === 'yoandri') {
         btnCuadre.style.display = 'block';
+        btnIpb.style.display = 'block'; // Se lo mostramos a Yoandri
         btnAjustes.style.display = 'none';
     } else {
         btnCuadre.style.display = 'none';
+        btnIpb.style.display = 'none'; // Se lo ocultamos a las administradoras
         btnAjustes.style.display = 'block';
     }
 }
+
 
 const ORDEN_MAESTRO = [
     "Tortica", "Pasteles", "Pan Suave", "Sal 1lb", "Sal 1kg",
