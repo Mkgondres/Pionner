@@ -176,7 +176,8 @@ window.iniciarCuadre = async function() {
 
         ORDEN_MAESTRO.forEach((item) => {
             if (item.startsWith("***")) {
-                html += `<tr style="background: #334155; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 10px; color: #f8fafc; text-align: center;">${item}</td></tr>`;
+                // AHORA ESTÁ ALINEADO A LA IZQUIERDA (text-align: left;)
+                html += `<tr style="background: #334155; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 10px; color: #f8fafc; text-align: left;">${item}</td></tr>`;
                 filaAlternada = false;
                 return;
             }
@@ -280,11 +281,9 @@ window.calcularCierreFinanciero = function() {
     let totalFinal = ventaTotal - trans - gastos - salarios;
     let efectivoReal = efectivo - salarios;
 
-    // Actualiza Venta Total y Final
     document.getElementById('lblVentaTotal').innerText = ventaTotal + " CUP";
     document.getElementById('lblFinal').innerText = totalFinal + " CUP";
 
-    // Actualiza Efectivo Recaudado en vivo en la pantalla
     const lblRecaudado = document.getElementById('lblEfectivoRecaudado');
     if(lblRecaudado) {
         lblRecaudado.innerText = efectivoReal + " CUP";
@@ -455,7 +454,6 @@ window.verNotificaciones = async function() {
     }
 }
 
-// LÓGICA DE NAVEGACIÓN DIRECTA FORZADA
 window.abrirAtajoNotificacion = async function(notifId, cuadreId) {
     try {
         await deleteDoc(doc(db, "notificaciones", notifId));
@@ -463,9 +461,7 @@ window.abrirAtajoNotificacion = async function(notifId, cuadreId) {
         verificarNotificacionesPendientes();
         
         if (cuadreId && cuadreId !== 'undefined' && cuadreId !== 'null') {
-            // Fuerza a esconder la app principal y el historial
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            // Carga el detalle directamente
             verDetalleCuadre(cuadreId);
         } else {
             verHistorial(); 
@@ -568,11 +564,11 @@ window.cerrarHistorial = function() {
 }
 
 window.volverAlHistorial = function() {
+    document.getElementById('detalleCuadreSection').classList.remove('active');
     verHistorial(); 
 }
 
 window.verDetalleCuadre = async function(id) {
-    // Fuerzo esconder todas las pantallas y mostrar solo el detalle
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('detalleCuadreSection').classList.add('active');
     
@@ -613,27 +609,43 @@ window.verDetalleCuadre = async function(id) {
                 let filaAlternada = false;
                 const cajitaFakeCSS = "width: 50px; text-align: center; margin: 0 auto; font-weight: bold; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 0; color: #0f172a; display: block;";
 
+                // MAPA PARA RECONSTRUIR LAS CATEGORÍAS EN EL HISTORIAL
+                let prodGuardados = {};
                 h.productos.forEach(p => {
-                    const filaClase = filaAlternada ? 'row-alt' : 'row-normal';
-                    filaAlternada = !filaAlternada;
+                    prodGuardados[p.nombre.trim()] = p;
+                });
 
-                    html += `<tr class="${filaClase}">`;
-                    html += `<td style="padding: 8px 6px; text-align: left; font-weight: 500;">${p.nombre}</td>`;
-                    html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.inicio}</div></td>`;
-                    html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.entrada}</div></td>`;
-                    html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.baja}</div></td>`;
-                    html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.final}</div></td>`;
-                    html += `<td style="padding: 8px 6px; text-align: center; font-weight: bold;">${p.venta}</td>`;
-                    
-                    if (!esYoandri) html += `<td style="padding: 8px 6px; text-align: center;">$${p.precioCompra || 0}</td>`;
-                    html += `<td style="padding: 8px 6px; text-align: center; font-weight: bold;">$${p.precioVenta || 0}</td>`;
-                    html += `<td style="padding: 8px 6px; text-align: center; color:#059669; font-weight:bold;">$${p.totalVenta}</td>`;
-                    
-                    if (!esYoandri) {
-                        html += `<td style="padding: 8px 6px; text-align: center; color:#047857;">$${p.gananciaU || 0}</td>`;
-                        html += `<td style="padding: 8px 6px; text-align: center; color:#047857; font-weight:bold;">$${p.gananciaT || 0}</td>`;
+                ORDEN_MAESTRO.forEach(item => {
+                    if (item.startsWith("***")) {
+                        // AHORA ESTÁ ALINEADO A LA IZQUIERDA EN EL HISTORIAL TAMBIÉN (text-align: left;)
+                        html += `<tr style="background: #334155; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 10px; color: #f8fafc; text-align: left;">${item}</td></tr>`;
+                        filaAlternada = false;
+                        return;
                     }
-                    html += `</tr>`;
+
+                    const p = prodGuardados[item.trim()];
+                    if (p) {
+                        const filaClase = filaAlternada ? 'row-alt' : 'row-normal';
+                        filaAlternada = !filaAlternada;
+
+                        html += `<tr class="${filaClase}">`;
+                        html += `<td style="padding: 8px 6px; text-align: left; font-weight: 500;">${p.nombre}</td>`;
+                        html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.inicio}</div></td>`;
+                        html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.entrada}</div></td>`;
+                        html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.baja}</div></td>`;
+                        html += `<td style="padding: 8px 6px;"><div style="${cajitaFakeCSS}">${p.final}</div></td>`;
+                        html += `<td style="padding: 8px 6px; text-align: center; font-weight: bold;">${p.venta}</td>`;
+                        
+                        if (!esYoandri) html += `<td style="padding: 8px 6px; text-align: center;">$${p.precioCompra || 0}</td>`;
+                        html += `<td style="padding: 8px 6px; text-align: center; font-weight: bold;">$${p.precioVenta || 0}</td>`;
+                        html += `<td style="padding: 8px 6px; text-align: center; color:#059669; font-weight:bold;">$${p.totalVenta}</td>`;
+                        
+                        if (!esYoandri) {
+                            html += `<td style="padding: 8px 6px; text-align: center; color:#047857;">$${p.gananciaU || 0}</td>`;
+                            html += `<td style="padding: 8px 6px; text-align: center; color:#047857; font-weight:bold;">$${p.gananciaT || 0}</td>`;
+                        }
+                        html += `</tr>`;
+                    }
                 });
             }
             html += '</table>';
@@ -754,3 +766,4 @@ window.verAlmacen = function() { alert("Control de almacén en construcción.");
 
 window.selectUser = selectUser; window.goBack = goBack; window.logout = logout; window.verifyPin = verifyPin;
 window.iniciarCuadre = iniciarCuadre; window.cancelarCuadre = cancelarCuadre;
+
