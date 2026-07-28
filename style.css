@@ -48,6 +48,7 @@ body {
 .header {
     margin-bottom: 20px;
     text-align: center;
+    position: relative;
 }
 
 .header h1 {
@@ -226,22 +227,74 @@ body {
     margin-top: 20px;
 }
 
-/* Estilos de tablas y contenedores financieros fluidos */
-table {
+/* --- TABLA FLUIDA Y CORREGIDA --- */
+#listaProductosContainer table {
     width: 100%;
-    background: rgba(30, 41, 59, 0.8) !important;
-    color: var(--text-primary);
+    border-collapse: collapse;
+    background: #ffffff !important;
+    color: #0f172a !important;
 }
 
-th {
-    background: rgba(15, 23, 42, 0.9) !important;
-    color: var(--text-secondary) !important;
+/* Encabezados de la tabla fijos (Sticky) y oscuros */
+#listaProductosContainer th {
+    position: sticky;
+    top: 0;
+    background: #1e293b !important;
+    color: #ffffff !important;
+    z-index: 20;
+    padding: 12px 8px;
+    font-size: 11px;
+    text-align: center;
 }
 
-td input {
-    background: rgba(15, 23, 42, 0.7) !important;
-    color: var(--text-primary) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+#listaProductosContainer th:first-child {
+    text-align: left;
+}
+
+/* Celdas de productos con texto oscuro legible */
+#listaProductosContainer td {
+    color: #0f172a !important;
+    padding: 8px 6px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+}
+
+/* Inputs dentro de la tabla */
+#listaProductosContainer input.input-cell {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* --- DISEÑO VERTICAL PARA GASTOS, TRANSFERENCIAS Y SALARIOS --- */
+.dynamic-row {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dynamic-row .input-group-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.dynamic-row input {
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(15, 23, 42, 0.8) !important;
+    color: #F8FAFC !important;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    font-size: 14px;
 }
 
 @keyframes fadeIn {
