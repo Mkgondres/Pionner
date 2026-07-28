@@ -16,7 +16,6 @@ const db = getFirestore(app);
 let currentUser = '';
 let currentUserName = '';
 
-// Sistema de mensajes
 function showMessage(text, type) {
     const msgBox = document.getElementById('feedbackMessage');
     if (msgBox) {
@@ -36,12 +35,9 @@ function clearMessage() {
 function selectUser(userId, userName) {
     currentUser = userId;
     currentUserName = userName;
-    
     document.getElementById('userPin').value = '';
     clearMessage();
-    
     document.getElementById('userNameDisplay').textContent = '¡Hola, ' + userName + '!';
-    
     document.getElementById('roleSelection').classList.remove('active');
     document.getElementById('authSection').classList.add('active');
 }
@@ -50,16 +46,13 @@ function goBack() {
     currentUser = '';
     currentUserName = '';
     clearMessage();
-    
     document.getElementById('authSection').classList.remove('active');
     document.getElementById('roleSelection').classList.add('active');
 }
 
-// Cerrar sesión y volver al inicio
 function logout() {
     currentUser = '';
     currentUserName = '';
-    
     document.getElementById('mainApp').classList.remove('active');
     document.getElementById('roleSelection').classList.add('active');
 }
@@ -67,7 +60,6 @@ function logout() {
 async function verifyPin() {
     const userPinInput = document.getElementById('userPin');
     const pinIngresado = userPinInput.value;
-
     clearMessage();
 
     if (pinIngresado === '') {
@@ -85,7 +77,6 @@ async function verifyPin() {
 
         if (docSnap.exists()) {
             const pinReal = docSnap.data().pin;
-            
             if (pinIngresado === pinReal) {
                 document.getElementById('authSection').classList.remove('active');
                 document.getElementById('mainApp').classList.add('active');
@@ -106,13 +97,10 @@ async function verifyPin() {
     btnSubmit.disabled = false;
 }
 
-// Limpiar error al escribir
 document.getElementById('userPin').addEventListener('input', clearMessage);
 
-// Configuración del Menú Principal según el usuario
 window.configurarPantallaPrincipal = function(userId, userName) {
     document.getElementById('welcomeUserText').innerText = `Usuario activo: ${userName}`;
-    
     const btnCuadre = document.getElementById('btnIniciarCuadre');
     const btnAjustes = document.getElementById('btnAjustesMenu');
 
@@ -125,7 +113,6 @@ window.configurarPantallaPrincipal = function(userId, userName) {
     }
 }
 
-// Lista maestra con el orden exacto proporcionado
 const ORDEN_MAESTRO = [
     "Tortica", "Pasteles", "Pan Suave", "Sal 1lb", "Sal 1kg",
     "*** Configuras y Snacks ***",
@@ -140,13 +127,12 @@ const ORDEN_MAESTRO = [
     "Maquina de Afeitar", "Papel Higienico", "Cepillo Dental", "Pasta Dental", "Jabón de Baño", "Jabón de Lavar", "Detergente 500gr", "Detergente Liq 300ml", "Detergente Liq 1Lt", "Detergente Liq 750ml", "Mascarilla Pequeña", "Mascarilla Facial", "Jaba de Culeros", "Paquete de Culeros"
 ];
 
-// Cargar productos ordenados con efecto cebra (filas alternadas blanco y verde clarito)
 window.iniciarCuadre = async function() {
     document.getElementById('mainApp').classList.remove('active');
     document.getElementById('cuadreSection').classList.add('active');
     
     const container = document.getElementById('listaProductosContainer');
-    container.innerHTML = '<p style="text-align: center; padding: 20px;">Cargando inventario ordenado...</p>';
+    container.innerHTML = '<p style="text-align: center; padding: 20px; color: #fff;">Cargando inventario ordenado...</p>';
 
     const esYoandri = (currentUser === 'yoandri');
 
@@ -161,64 +147,62 @@ window.iniciarCuadre = async function() {
             }
         });
 
-        let html = '<table style="width: 100%; font-size: 13px; border-collapse: collapse; background: white;">';
-        html += '<tr style="background: #f4f4f5; border-bottom: 2px solid #d1d5db; text-align: center; position: sticky; top: 0; z-index: 10;">';
-        html += '<th style="padding: 10px; text-align: left;">PRODUCTO</th>';
-        html += '<th style="padding: 10px;">INICIO</th>';
-        html += '<th style="padding: 10px;">ENTRADA</th>';
-        html += '<th style="padding: 10px;">BAJA</th>';
-        html += '<th style="padding: 10px;">FINAL</th>';
-        html += '<th style="padding: 10px;">VENTA</th>';
+        let html = '<table>';
+        html += '<tr>';
+        html += '<th>PRODUCTO</th>';
+        html += '<th>INICIO</th>';
+        html += '<th>ENTRADA</th>';
+        html += '<th>BAJA</th>';
+        html += '<th>FINAL</th>';
+        html += '<th>VENTA</th>';
         
         if (!esYoandri) {
-            html += '<th style="padding: 10px;">PRECIO COMP</th>';
+            html += '<th>PRECIO COMP</th>';
         }
-        html += '<th style="padding: 10px;">PRECIO VNTA</th>';
-        html += '<th style="padding: 10px;">TOTAL VNTA</th>';
+        html += '<th>PRECIO VNTA</th>';
+        html += '<th>TOTAL VNTA</th>';
         
         if (!esYoandri) {
-            html += '<th style="padding: 10px;">GANANCIA U</th>';
-            html += '<th style="padding: 10px;">GANANCIA T</th>';
+            html += '<th>GANANCIA U</th>';
+            html += '<th>GANANCIA T</th>';
         }
         html += '</tr>';
 
         let indexContador = 0;
-        let filaAlternada = false; // Control para el efecto cebra
+        let filaAlternada = false;
 
         ORDEN_MAESTRO.forEach((item) => {
             if (item.startsWith("***")) {
-                html += `<tr style="background: #e4e4e7; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 8px; text-align: left; color: #3f3f46;">${item}</td></tr>`;
-                filaAlternada = false; // Reiniciamos el patrón al cambiar de sección
+                html += `<tr style="background: #334155; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 10px; text-align: left; color: #f8fafc;">${item}</td></tr>`;
+                filaAlternada = false;
                 return;
             }
 
             const p = productosMap[item] || { nombre: item, precioVenta: 0, precioCompra: 0 };
             const idx = indexContador++;
+            const colorFondo = filaAlternada ? '#f1f5f9' : '#ffffff';
+            filaAlternada = !filaAlternada;
 
-            // Color de fondo alternado (Blanco vs Verde Clarito #f0fdf4)
-            const colorFondo = filaAlternada ? '#f0fdf4' : '#ffffff';
-            filaAlternada = !filaAlternada; // Alternar para la siguiente fila
-
-            html += `<tr style="border-bottom: 1px solid #f3f4f6; text-align: center; background-color: ${colorFondo};" data-index="${idx}">`;
-            html += `<td style="padding: 8px; text-align: left; font-weight: 500;">${p.nombre}</td>`;
+            html += `<tr style="background-color: ${colorFondo};" data-index="${idx}">`;
+            html += `<td style="text-align: left; font-weight: 500;">${p.nombre}</td>`;
             
-            html += `<td style="padding: 4px;"><input type="number" class="input-cell input-inicio" data-index="${idx}" placeholder="-" style="width: 45px; padding: 4px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; background: white;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td style="padding: 4px;"><input type="number" class="input-cell input-entrada" data-index="${idx}" placeholder="-" style="width: 45px; padding: 4px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; background: white;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td style="padding: 4px;"><input type="number" class="input-cell input-baja" data-index="${idx}" placeholder="-" style="width: 45px; padding: 4px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; background: white;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td style="padding: 4px;"><input type="number" class="input-cell input-final" data-index="${idx}" placeholder="-" style="width: 45px; padding: 4px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; background: white;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-inicio" data-index="${idx}" placeholder="-" style="width: 50px; padding: 6px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-entrada" data-index="${idx}" placeholder="-" style="width: 50px; padding: 6px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-baja" data-index="${idx}" placeholder="-" style="width: 50px; padding: 6px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-final" data-index="${idx}" placeholder="-" style="width: 50px; padding: 6px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
             
-            html += `<td style="padding: 8px; color: #71717A;" id="venta-${idx}">-</td>`;
+            html += `<td style="color: #64748b; font-weight: bold;" id="venta-${idx}">-</td>`;
             
             if (!esYoandri) {
-                html += `<td style="padding: 8px;">${p.precioCompra > 0 ? '$' + p.precioCompra : '-'}</td>`;
+                html += `<td>${p.precioCompra > 0 ? '$' + p.precioCompra : '-'}</td>`;
             }
             
-            html += `<td style="padding: 8px; font-weight: bold;" id="pventa-${idx}">${p.precioVenta > 0 ? '$' + p.precioVenta : '-'}</td>`;
-            html += `<td style="padding: 8px; font-weight: bold; color: #10B981;" id="totalVenta-${idx}">-</td>`;
+            html += `<td style="font-weight: bold;" id="pventa-${idx}">${p.precioVenta > 0 ? '$' + p.precioVenta : '-'}</td>`;
+            html += `<td style="font-weight: bold; color: #059669;" id="totalVenta-${idx}">-</td>`;
             
             if (!esYoandri) {
-                html += `<td style="padding: 8px; color: #059669;" id="gananciaU-${idx}">${p.precioVenta > 0 && p.precioCompra > 0 ? '$' + (p.precioVenta - p.precioCompra) : '-'}</td>`;
-                html += `<td style="padding: 8px; color: #059669;" id="gananciaT-${idx}">-</td>`;
+                html += `<td style="color: #047857;" id="gananciaU-${idx}">${p.precioVenta > 0 && p.precioCompra > 0 ? '$' + (p.precioVenta - p.precioCompra) : '-'}</td>`;
+                html += `<td style="color: #047857;" id="gananciaT-${idx}">-</td>`;
             }
             
             html += `</tr>`;
@@ -228,12 +212,11 @@ window.iniciarCuadre = async function() {
         container.innerHTML = html;
 
     } catch (error) {
-        console.error("Error al cargar inventario ordenado:", error);
+        console.error("Error al cargar inventario:", error);
         container.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">Error al cargar el inventario.</p>';
     }
 }
 
-// Cálculo en tiempo real por cada producto de la tabla
 window.calcularFilaProducto = function(index, precioVenta, precioCompra) {
     const row = document.querySelector(`tr[data-index="${index}"]`);
     if (!row) return;
@@ -259,37 +242,51 @@ window.calcularFilaProducto = function(index, precioVenta, precioCompra) {
     calcularCierreFinanciero();
 }
 
-// Funciones para filas dinámicas financieras
+// Añadir filas hacia ABAJO (appendChild)
 window.agregarTransferencia = function() {
     const container = document.getElementById('transferenciasContainer');
     const div = document.createElement('div');
-    div.style.cssText = "display: flex; gap: 8px; margin-bottom: 6px;";
-    div.innerHTML = `<input type="number" placeholder="Monto de transferencia" class="input-transf" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; background: white;" oninput="calcularCierreFinanciero()">
-                     <button type="button" onclick="this.parentElement.remove(); calcularCierreFinanciero();" style="background:#EF4444; color:white; border:none; border-radius:6px; padding:0 12px; cursor:pointer;">X</button>`;
+    div.className = 'dynamic-row';
+    div.innerHTML = `
+        <span style="font-size: 12px; color: #94A3B8; font-weight: bold;">Monto de Transferencia:</span>
+        <div class="input-group-row">
+            <input type="number" placeholder="Ej. 1500" class="input-transf" oninput="calcularCierreFinanciero()">
+            <button type="button" onclick="this.closest('.dynamic-row').remove(); calcularCierreFinanciero();" style="background:#EF4444; color:white; border:none; border-radius:6px; padding:8px 12px; cursor:pointer;">X</button>
+        </div>`;
     container.appendChild(div);
 }
 
 window.agregarGasto = function() {
     const container = document.getElementById('gastosContainer');
     const div = document.createElement('div');
-    div.style.cssText = "display: flex; gap: 8px; margin-bottom: 6px;";
-    div.innerHTML = `<input type="text" placeholder="Motivo del gasto" class="input-gasto-motivo" style="flex: 2; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; background: white;">
-                     <input type="number" placeholder="Monto" class="input-gasto-monto" style="flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; background: white;" oninput="calcularCierreFinanciero()">
-                     <button type="button" onclick="this.parentElement.remove(); calcularCierreFinanciero();" style="background:#EF4444; color:white; border:none; border-radius:6px; padding:0 12px; cursor:pointer;">X</button>`;
+    div.className = 'dynamic-row';
+    div.innerHTML = `
+        <span style="font-size: 12px; color: #94A3B8; font-weight: bold;">Motivo del gasto:</span>
+        <input type="text" placeholder="Ej. Alquiler del local" class="input-gasto-motivo">
+        <span style="font-size: 12px; color: #94A3B8; font-weight: bold; margin-top: 4px;">Monto:</span>
+        <div class="input-group-row">
+            <input type="number" placeholder="Ej. 2600" class="input-gasto-monto" oninput="calcularCierreFinanciero()">
+            <button type="button" onclick="this.closest('.dynamic-row').remove(); calcularCierreFinanciero();" style="background:#EF4444; color:white; border:none; border-radius:6px; padding:8px 12px; cursor:pointer;">X</button>
+        </div>`;
     container.appendChild(div);
 }
 
 window.agregarSalario = function() {
     const container = document.getElementById('salariosContainer');
     const div = document.createElement('div');
-    div.style.cssText = "display: flex; gap: 8px; margin-bottom: 6px;";
-    div.innerHTML = `<input type="text" placeholder="Nombre o Cargo" class="input-salario-nombre" style="flex: 2; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; background: white;">
-                     <input type="number" placeholder="Salario" class="input-salario-monto" style="flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; background: white;" oninput="calcularCierreFinanciero()">
-                     <button type="button" onclick="this.parentElement.remove(); calcularCierreFinanciero();" style="background:#EF4444; color:white; border:none; border-radius:6px; padding:0 12px; cursor:pointer;">X</button>`;
+    div.className = 'dynamic-row';
+    div.innerHTML = `
+        <span style="font-size: 12px; color: #94A3B8; font-weight: bold;">Persona o Cargo:</span>
+        <input type="text" placeholder="Ej. Yoandri / Dependiente" class="input-salario-nombre">
+        <span style="font-size: 12px; color: #94A3B8; font-weight: bold; margin-top: 4px;">Salario a pagar:</span>
+        <div class="input-group-row">
+            <input type="number" placeholder="Ej. 1000" class="input-salario-monto" oninput="calcularCierreFinanciero()">
+            <button type="button" onclick="this.closest('.dynamic-row').remove(); calcularCierreFinanciero();" style="background:#EF4444; color:white; border:none; border-radius:6px; padding:8px 12px; cursor:pointer;">X</button>
+        </div>`;
     container.appendChild(div);
 }
 
-// Cálculo general y comparativa automática con el efectivo
+// Cálculo financiero, salarios descontados de efectivo y comparativa inteligente
 window.calcularCierreFinanciero = function() {
     let ventaTotalEsperada = 0;
     document.querySelectorAll('[id^="totalVenta-"]').forEach(el => {
@@ -314,37 +311,45 @@ window.calcularCierreFinanciero = function() {
 
     let efectivoCaja = parseFloat(document.getElementById('efectivoCaja')?.value) || 0;
 
-    let totalFinalEsperado = ventaTotalEsperada - totalTransferencias - totalGastos - totalSalarios;
+    // Final: Venta Total menos Transferencias, Gastos y Salarios
+    let totalFinal = ventaTotalEsperada - totalTransferencias - totalGastos - totalSalarios;
 
-    const lblTotalVenta = document.getElementById('lblTotalVenta');
-    const lblTotalFinal = document.getElementById('lblTotalFinalCalculado');
-    if (lblTotalVenta) lblTotalVenta.innerText = ventaTotalEsperada;
-    if (lblTotalFinal) lblTotalFinal.innerText = totalFinalEsperado;
+    // Efectivo Final real (al efectivo contado en caja se le restan los salarios pagados de ahí)
+    let efectivoFinalReal = efectivoCaja - totalSalarios;
 
-    let diferencia = efectivoCaja - totalFinalEsperado;
+    const lblVentaTotal = document.getElementById('lblVentaTotal');
+    const lblFinal = document.getElementById('lblFinal');
+    
+    if (lblVentaTotal) lblVentaTotal.innerText = ventaTotalEsperada + " CUP";
+    if (lblFinal) lblFinal.innerText = totalFinal + " CUP";
+
     const lblResultado = document.getElementById('lblResultadoDiferencia');
-
     if (!lblResultado) return;
 
-    if (efectivoCaja === 0 && ventaTotalEsperada === 0) {
-        lblResultado.innerText = "Realiza el conteo para ver la comparativa...";
-        lblResultado.style.color = "#71717A";
+    if (ventaTotalEsperada === 0 && efectivoCaja === 0) {
+        lblResultado.innerHTML = `<span style="color: #94A3B8;">Realiza el conteo para ver la comparativa...</span>`;
         return;
     }
 
-    if (diferencia === 0) {
-        lblResultado.innerText = "¡Perfecto! El cuadre está exacto (0 CUP de diferencia).";
-        lblResultado.style.color = "#10B981";
-    } else if (diferencia > 0) {
-        lblResultado.innerText = `Alerta: ¡SOBRA dinero! Hay un excedente de ${diferencia} CUP.`;
-        lblResultado.style.color = "#F59E0B";
+    // Comparativa: si Final (calculado) <= EfectivoFinalReal, todo correcto (Verde). Si no, faltante (Rojo).
+    let diferencia = efectivoFinalReal - totalFinal;
+
+    if (diferencia >= 0) {
+        // Cuadrado verde indicando que todo está correcto
+        lblResultado.innerHTML = `
+            <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; color: #6EE7B7; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center;">
+                ✓ Todo Correcto (Cuadre Exacto o Excedente de +${diferencia} CUP)
+            </div>`;
     } else {
-        lblResultado.innerText = `Alerta: ¡FALTA dinero! Hay un faltante de ${Math.abs(diferencia)} CUP.`;
-        lblResultado.style.color = "#EF4444";
+        // Cuadrado rojo con alerta de faltante
+        let faltanteAbsoluto = Math.abs(diferencia);
+        lblResultado.innerHTML = `
+            <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid #EF4444; color: #FCA5A5; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center;">
+                ⚠ Atención, se detectó faltante de dinero (${faltanteAbsoluto} CUP)
+            </div>`;
     }
 }
 
-// Volver al menú principal
 window.cancelarCuadre = function() {
     const seccionCuadre = document.getElementById('cuadreSection');
     if (seccionCuadre) {
@@ -354,25 +359,13 @@ window.cancelarCuadre = function() {
     clearMessage();
 }
 
-// Guardar cuadre definitivo
 window.guardarCuadreFinal = function() {
     const ahora = new Date();
-    const hora = ahora.getHours();
-    let nombreTurno = "";
-
-    if (hora >= 6 && hora < 14) { 
-        nombreTurno = "Turno de la Noche (Cierre Mañana)";
-    } else if (hora >= 18 && hora <= 23 || hora < 6) {
-        nombreTurno = "Turno del Día (Cierre Noche)";
-    } else {
-        nombreTurno = "Turno Especial"; 
-    }
+    const hora = horasLocal = ahora.getHours();
+    let nombreTurno = (hora >= 6 && hora < 14) ? "Turno de la Noche (Cierre Mañana)" : "Turno del Día (Cierre Noche)";
 
     alert(`¡Cuadre guardado con éxito!\nRegistrado como: ${nombreTurno}\nHora exacta: ${ahora.toLocaleTimeString()}`);
-    
-    setTimeout(() => {
-        cancelarCuadre();
-    }, 1500);
+    setTimeout(() => { cancelarCuadre(); }, 1500);
 }
 
 window.verHistorial = function() {
@@ -383,8 +376,22 @@ window.verAlmacen = function() {
     alert("Control de almacén en construcción.");
 }
 
-// Exponer funciones globales necesarias
 window.selectUser = selectUser;
 window.goBack = goBack;
-window.logout = logout;
+window.logout = logout;[27/7, 16:08] +55 27 3208-2264: O pedido de demissão de uma funcionária gestante pode depender de assistência do sindicato ou da autoridade competente para ser considerado válido, em razão da estabilidade provisória garantida à gestante. Na prática, muitas empresas encaminham a empregada ao sindicato para homologar o pedido de demissão, com o objetivo de garantir que a decisão foi tomada de forma livre e consciente, reduzindo o risco de futuras discussões judiciais.
+
+Se essa assistência obrigatória não ocorrer quando exigida, é possível analisar a situação e, conforme o caso, buscar judicialmente o reconhecimento da estabilidade gestacional e os direitos decorrentes.
+
+Quando a funcionária pede demissão, em regra, ela tem direito ao saldo de salário, férias vencidas e proporcionais acrescidas de 1/3, 13º salário proporcional e pode receber o salário-maternidade pago pelo INSS, desde que preenchidos os requisitos legais. Nessa hipótese, normalmente não há direito ao aviso-prévio indenizado, à multa de 40% do FGTS nem ao seguro-desemprego.
+[27/7, 16:08] +55 27 3208-2264: Ou seja, se a empresa ela não fizer a homologação no sindicato, podemos entrar com o processo de estabilidade e buscar os seus direitos, e você receber em casa[27/7, 16:08] +55 27 3208-2264: O pedido de demissão de uma funcionária gestante pode depender de assistência do sindicato ou da autoridade competente para ser considerado válido, em razão da estabilidade provisória garantida à gestante. Na prática, muitas empresas encaminham a empregada ao sindicato para homologar o pedido de demissão, com o objetivo de garantir que a decisão foi tomada de forma livre e consciente, reduzindo o risco de futuras discussões judiciais.
+
+Se essa assistência obrigatória não ocorrer quando exigida, é possível analisar a situação e, conforme o caso, buscar judicialmente o reconhecimento da estabilidade gestacional e os direitos decorrentes.
+
+Quando a funcionária pede demissão, em regra, ela tem direito ao saldo de salário, férias vencidas e proporcionais acrescidas de 1/3, 13º salário proporcional e pode receber o salário-maternidade pago pelo INSS, desde que preenchidos os requisitos legais. Nessa hipótese, normalmente não há direito ao aviso-prévio indenizado, à multa de 40% do FGTS nem ao seguro-desemprego.
+[27/7, 16:08] +55 27 3208-2264: Ou seja, se a empresa ela não fizer a homologação no sindicato, podemos entrar com o processo de estabilidade e buscar os seus direitos, e você receber em casa[27/7, 16:08] +55 27 3208-2264: O pedido de demissão de uma funcionária gestante pode depender de assistência do sindicato ou da autoridade competente para ser considerado válido, em razão da estabilidade provisória garantida à gestante. Na prática, muitas empresas encaminham a empregada ao sindicato para homologar o pedido de demissão, com o objetivo de garantir que a decisão foi tomada de forma livre e consciente, reduzindo o risco de futuras discussões judiciais.
+
+Se essa assistência obrigatória não ocorrer quando exigida, é possível analisar a situação e, conforme o caso, buscar judicialmente o reconhecimento da estabilidade gestacional e os direitos decorrentes.
+
+Quando a funcionária pede demissão, em regra, ela tem direito ao saldo de salário, férias vencidas e proporcionais acrescidas de 1/3, 13º salário proporcional e pode receber o salário-maternidade pago pelo INSS, desde que preenchidos os requisitos legais. Nessa hipótese, normalmente não há direito ao aviso-prévio indenizado, à multa de 40% do FGTS nem ao seguro-desemprego.
+[27/7, 16:08] +55 27 3208-2264: Ou seja, se a empresa ela não fizer a homologação no sindicato, podemos entrar com o processo de estabilidade e buscar os seus direitos, e você receber em casa
 window.verifyPin = verifyPin;
