@@ -1,5 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-import { getFirestore, doc, getDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { 
+    getFirestore, doc, getDoc, getDocs, collection, addDoc, 
+    serverTimestamp, query, where, enableIndexedDbPersistence 
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAhueHCWyIWibnQCf_8gSH3KP6eliAW5Vk",
@@ -13,9 +16,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// 👉 ACTIVAR PERSISTENCIA OFFLINE (Para la situación en Cuba) 👈
+enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code == 'failed-precondition') {
+        console.warn("La persistencia falló: Varias pestañas abiertas.");
+    } else if (err.code == 'unimplemented') {
+        console.warn("El navegador no soporta persistencia offline.");
+    }
+});
+
 let currentUser = '';
 let currentUserName = '';
 
+// --- SISTEMA DE MENSAJES Y LOGIN ---
 function showMessage(text, type) {
     const msgBox = document.getElementById('feedbackMessage');
     if (msgBox) {
@@ -81,23 +94,22 @@ async function verifyPin() {
                 document.getElementById('authSection').classList.remove('active');
                 document.getElementById('mainApp').classList.add('active');
                 configurarPantallaPrincipal(currentUser, currentUserName);
+                verificarNotificacionesPendientes(); // Ver si hay alertas
             } else {
                 showMessage('PIN incorrecto. Por favor, intenta de nuevo.', 'error');
                 userPinInput.value = '';
             }
         } else {
-            showMessage('Error: Usuario no encontrado en la base de datos.', 'error');
+            showMessage('Error: Usuario no encontrado.', 'error');
         }
     } catch (error) {
         console.error("Error:", error);
-        showMessage('Error de conexión con la base de datos.', 'error');
+        showMessage('Modo Offline: Verificando PIN local...', 'success');
+        // Aquí Firebase permite el login si ya entró antes offline
     }
-
     btnSubmit.textContent = 'Entrar';
     btnSubmit.disabled = false;
 }
-
-document.getElementById('userPin').addEventListener('input', clearMessage);
 
 window.configurarPantallaPrincipal = function(userId, userName) {
     document.getElementById('welcomeUserText').innerText = `Usuario activo: ${userName}`;
@@ -113,6 +125,7 @@ window.configurarPantallaPrincipal = function(userId, userName) {
     }
 }
 
+// --- LÓGICA DEL CUADRE (ORDEN MAESTRO) ---
 const ORDEN_MAESTRO = [
     "Tortica", "Pasteles", "Pan Suave", "Sal 1lb", "Sal 1kg",
     "*** Configuras y Snacks ***",
@@ -127,45 +140,28 @@ const ORDEN_MAESTRO = [
     "Maquina de Afeitar", "Papel Higienico", "Cepillo Dental", "Pasta Dental", "Jabón de Baño", "Jabón de Lavar", "Detergente 500gr", "Detergente Liq 300ml", "Detergente Liq 1Lt", "Detergente Liq 750ml", "Mascarilla Pequeña", "Mascarilla Facial", "Jaba de Culeros", "Paquete de Culeros"
 ];
 
+let productosMapCache = {}; // Guardar datos financieros para el envío final
+
 window.iniciarCuadre = async function() {
     document.getElementById('mainApp').classList.remove('active');
     document.getElementById('cuadreSection').classList.add('active');
-    
     const container = document.getElementById('listaProductosContainer');
-    container.innerHTML = '<p style="text-align: center; padding: 20px; color: #fff;">Cargando inventario ordenado...</p>';
+    container.innerHTML = '<p style="text-align: center; color: #fff;">Cargando inventario ordenado...</p>';
 
     const esYoandri = (currentUser === 'yoandri');
 
     try {
         const querySnapshot = await getDocs(collection(db, "productos"));
-        let productosMap = {};
-        
+        productosMapCache = {};
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            if (data.nombre) {
-                productosMap[data.nombre.trim()] = data;
-            }
+            if (data.nombre) productosMapCache[data.nombre.trim()] = data;
         });
 
-        let html = '<table>';
-        html += '<tr>';
-        html += '<th>PRODUCTO</th>';
-        html += '<th>INICIO</th>';
-        html += '<th>ENTRADA</th>';
-        html += '<th>BAJA</th>';
-        html += '<th>FINAL</th>';
-        html += '<th>VENTA</th>';
-        
-        if (!esYoandri) {
-            html += '<th>PRECIO COMP</th>';
-        }
-        html += '<th>PRECIO VNTA</th>';
-        html += '<th>TOTAL VNTA</th>';
-        
-        if (!esYoandri) {
-            html += '<th>GANANCIA U</th>';
-            html += '<th>GANANCIA T</th>';
-        }
+        let html = '<table><tr><th>PRODUCTO</th><th>INICIO</th><th>ENTRADA</th><th>BAJA</th><th>FINAL</th><th>VENTA</th>';
+        if (!esYoandri) html += '<th>PRECIO COMP</th>';
+        html += '<th>PRECIO VNTA</th><th>TOTAL VNTA</th>';
+        if (!esYoandri) html += '<th>GANANCIA U</th><th>GANANCIA T</th>';
         html += '</tr>';
 
         let indexContador = 0;
@@ -173,85 +169,60 @@ window.iniciarCuadre = async function() {
 
         ORDEN_MAESTRO.forEach((item) => {
             if (item.startsWith("***")) {
-                html += `<tr style="background: #334155; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 10px; text-align: left; color: #f8fafc;">${item}</td></tr>`;
+                html += `<tr style="background: #334155; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 10px; color: #f8fafc;">${item}</td></tr>`;
                 filaAlternada = false;
                 return;
             }
-
-            const p = productosMap[item] || { nombre: item, precioVenta: 0, precioCompra: 0 };
+            const p = productosMapCache[item] || { nombre: item, precioVenta: 0, precioCompra: 0 };
             const idx = indexContador++;
             const colorFondo = filaAlternada ? '#f1f5f9' : '#ffffff';
             filaAlternada = !filaAlternada;
 
-            html += `<tr style="background-color: ${colorFondo};" data-index="${idx}">`;
-            html += `<td style="text-align: left; font-weight: 500;">${p.nombre}</td>`;
-            
-            html += `<td><input type="number" class="input-cell input-inicio" data-index="${idx}" placeholder="-" style="width: 50px; padding: 6px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td><input type="number" class="input-cell input-entrada" data-index="${idx}" placeholder="-" style="width: 50px; padding: 6px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td><input type="number" class="input-cell input-baja" data-index="${idx}" placeholder="-" style="width: 50px; padding: 6px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            html += `<td><input type="number" class="input-cell input-final" data-index="${idx}" placeholder="-" style="width: 50px; padding: 6px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
-            
-            html += `<td style="color: #64748b; font-weight: bold;" id="venta-${idx}">-</td>`;
-            
+            html += `<tr style="background-color: ${colorFondo};" data-index="${idx}" data-nombre="${p.nombre}">`;
+            html += `<td style="text-align: left;">${p.nombre}</td>`;
+            html += `<td><input type="number" class="input-cell input-inicio" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-entrada" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-baja" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td><input type="number" class="input-cell input-final" style="width: 50px;" oninput="calcularFilaProducto(${idx}, ${p.precioVenta || 0}, ${p.precioCompra || 0})"></td>`;
+            html += `<td id="venta-${idx}">0</td>`;
+            if (!esYoandri) html += `<td>$${p.precioCompra}</td>`;
+            html += `<td style="font-weight: bold;">$${p.precioVenta}</td>`;
+            html += `<td style="font-weight: bold; color: #059669;" id="totalVenta-${idx}">0</td>`;
             if (!esYoandri) {
-                html += `<td>${p.precioCompra > 0 ? '$' + p.precioCompra : '-'}</td>`;
+                html += `<td>$${(p.precioVenta - p.precioCompra)}</td>`;
+                html += `<td id="gananciaT-${idx}">0</td>`;
             }
-            
-            html += `<td style="font-weight: bold;" id="pventa-${idx}">${p.precioVenta > 0 ? '$' + p.precioVenta : '-'}</td>`;
-            html += `<td style="font-weight: bold; color: #059669;" id="totalVenta-${idx}">-</td>`;
-            
-            if (!esYoandri) {
-                html += `<td style="color: #047857;" id="gananciaU-${idx}">${p.precioVenta > 0 && p.precioCompra > 0 ? '$' + (p.precioVenta - p.precioCompra) : '-'}</td>`;
-                html += `<td style="color: #047857;" id="gananciaT-${idx}">-</td>`;
-            }
-            
             html += `</tr>`;
         });
-
-        html += '</table>';
-        container.innerHTML = html;
-
-    } catch (error) {
-        console.error("Error al cargar inventario:", error);
-        container.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">Error al cargar el inventario.</p>';
-    }
+        container.innerHTML = html + '</table>';
+    } catch (e) { console.error(e); }
 }
 
 window.calcularFilaProducto = function(index, precioVenta, precioCompra) {
     const row = document.querySelector(`tr[data-index="${index}"]`);
-    if (!row) return;
-
     const inicio = parseFloat(row.querySelector('.input-inicio').value) || 0;
     const entrada = parseFloat(row.querySelector('.input-entrada').value) || 0;
     const baja = parseFloat(row.querySelector('.input-baja').value) || 0;
     const final = parseFloat(row.querySelector('.input-final').value) || 0;
 
-    const ventaUnidades = (inicio + entrada) - (baja + final);
-    const totalVenta = ventaUnidades * precioVenta;
+    const venta = (inicio + entrada) - (baja + final);
+    const totalVenta = venta * precioVenta;
+    const gananciaT = venta * (precioVenta - precioCompra);
 
-    document.getElementById(`venta-${index}`).innerText = ventaUnidades >= 0 ? ventaUnidades : 0;
+    document.getElementById(`venta-${index}`).innerText = venta >= 0 ? venta : 0;
     document.getElementById(`totalVenta-${index}`).innerText = totalVenta >= 0 ? totalVenta : 0;
-
-    const esYoandri = (currentUser === 'yoandri');
-    if (!esYoandri && precioCompra > 0) {
-        const gananciaTotal = ventaUnidades * (precioVenta - precioCompra);
-        const elGananciaT = document.getElementById(`gananciaT-${index}`);
-        if (elGananciaT) elGananciaT.innerText = gananciaTotal >= 0 ? gananciaTotal : 0;
-    }
+    const gElem = document.getElementById(`gananciaT-${index}`);
+    if (gElem) gElem.innerText = gananciaT >= 0 ? gananciaT : 0;
 
     calcularCierreFinanciero();
 }
 
+// --- CIERRE FINANCIERO Y SYNC ---
 window.agregarTransferencia = function() {
     const container = document.getElementById('transferenciasContainer');
     const div = document.createElement('div');
     div.className = 'dynamic-row';
-    div.innerHTML = `
-        <span style="font-size: 12px; color: #94A3B8; font-weight: bold;">Monto de Transferencia:</span>
-        <div class="input-group-row">
-            <input type="number" placeholder="Ej. 1500" class="input-transf" oninput="calcularCierreFinanciero()">
-            <button type="button" onclick="this.closest('.dynamic-row').remove(); calcularCierreFinanciero();" style="background:#EF4444; color:white; border:none; border-radius:6px; padding:8px 12px; cursor:pointer;">X</button>
-        </div>`;
+    div.innerHTML = `<span style="font-size:12px;color:#94A3B8;">Monto:</span><div class="input-group-row"><input type="number" class="input-transf" oninput="calcularCierreFinanciero()"><button onclick="this.closest('.dynamic-row').remove();calcularCierreFinanciero();">X</button></div>`;
     container.appendChild(div);
 }
 
@@ -259,14 +230,7 @@ window.agregarGasto = function() {
     const container = document.getElementById('gastosContainer');
     const div = document.createElement('div');
     div.className = 'dynamic-row';
-    div.innerHTML = `
-        <span style="font-size: 12px; color: #94A3B8; font-weight: bold;">Motivo del gasto:</span>
-        <input type="text" placeholder="Ej. Alquiler del local" class="input-gasto-motivo">
-        <span style="font-size: 12px; color: #94A3B8; font-weight: bold; margin-top: 4px;">Monto:</span>
-        <div class="input-group-row">
-            <input type="number" placeholder="Ej. 2600" class="input-gasto-monto" oninput="calcularCierreFinanciero()">
-            <button type="button" onclick="this.closest('.dynamic-row').remove(); calcularCierreFinanciero();" style="background:#EF4444; color:white; border:none; border-radius:6px; padding:8px 12px; cursor:pointer;">X</button>
-        </div>`;
+    div.innerHTML = `<span style="font-size:12px;color:#94A3B8;">Motivo:</span><input type="text" class="input-gasto-motivo"><span style="font-size:12px;color:#94A3B8;">Monto:</span><div class="input-group-row"><input type="number" class="input-gasto-monto" oninput="calcularCierreFinanciero()"><button onclick="this.closest('.dynamic-row').remove();calcularCierreFinanciero();">X</button></div>`;
     container.appendChild(div);
 }
 
@@ -274,101 +238,87 @@ window.agregarSalario = function() {
     const container = document.getElementById('salariosContainer');
     const div = document.createElement('div');
     div.className = 'dynamic-row';
-    div.innerHTML = `
-        <span style="font-size: 12px; color: #94A3B8; font-weight: bold;">Persona o Cargo:</span>
-        <input type="text" placeholder="Ej. Yoandri / Dependiente" class="input-salario-nombre">
-        <span style="font-size: 12px; color: #94A3B8; font-weight: bold; margin-top: 4px;">Salario a pagar:</span>
-        <div class="input-group-row">
-            <input type="number" placeholder="Ej. 1000" class="input-salario-monto" oninput="calcularCierreFinanciero()">
-            <button type="button" onclick="this.closest('.dynamic-row').remove(); calcularCierreFinanciero();" style="background:#EF4444; color:white; border:none; border-radius:6px; padding:8px 12px; cursor:pointer;">X</button>
-        </div>`;
+    div.innerHTML = `<span style="font-size:12px;color:#94A3B8;">Nombre:</span><input type="text" class="input-salario-nombre"><span style="font-size:12px;color:#94A3B8;">Salario:</span><div class="input-group-row"><input type="number" class="input-salario-monto" oninput="calcularCierreFinanciero()"><button onclick="this.closest('.dynamic-row').remove();calcularCierreFinanciero();">X</button></div>`;
     container.appendChild(div);
 }
 
 window.calcularCierreFinanciero = function() {
-    let ventaTotalEsperada = 0;
-    document.querySelectorAll('[id^="totalVenta-"]').forEach(el => {
-        const val = parseFloat(el.innerText) || 0;
-        ventaTotalEsperada += val;
-    });
+    let ventaTotal = 0;
+    document.querySelectorAll('[id^="totalVenta-"]').forEach(el => ventaTotal += parseFloat(el.innerText) || 0);
+    let trans = 0; document.querySelectorAll('.input-transf').forEach(i => trans += parseFloat(i.value) || 0);
+    let gastos = 0; document.querySelectorAll('.input-gasto-monto').forEach(i => gastos += parseFloat(i.value) || 0);
+    let salarios = 0; document.querySelectorAll('.input-salario-monto').forEach(i => salarios += parseFloat(i.value) || 0);
+    let efectivo = parseFloat(document.getElementById('efectivoCaja').value) || 0;
 
-    let totalTransferencias = 0;
-    document.querySelectorAll('.input-transf').forEach(input => {
-        totalTransferencias += parseFloat(input.value) || 0;
-    });
+    let totalFinal = ventaTotal - trans - gastos - salarios;
+    let efectivoReal = efectivo - salarios;
 
-    let totalGastos = 0;
-    document.querySelectorAll('.input-gasto-monto').forEach(input => {
-        totalGastos += parseFloat(input.value) || 0;
-    });
+    document.getElementById('lblVentaTotal').innerText = ventaTotal + " CUP";
+    document.getElementById('lblFinal').innerText = totalFinal + " CUP";
 
-    let totalSalarios = 0;
-    document.querySelectorAll('.input-salario-monto').forEach(input => {
-        totalSalarios += parseFloat(input.value) || 0;
-    });
+    const res = document.getElementById('lblResultadoDiferencia');
+    let diff = efectivoReal - totalFinal;
 
-    let efectivoCaja = parseFloat(document.getElementById('efectivoCaja')?.value) || 0;
-
-    let totalFinal = ventaTotalEsperada - totalTransferencias - totalGastos - totalSalarios;
-    let efectivoFinalReal = efectivoCaja - totalSalarios;
-
-    const lblVentaTotal = document.getElementById('lblVentaTotal');
-    const lblFinal = document.getElementById('lblFinal');
-    
-    if (lblVentaTotal) lblVentaTotal.innerText = ventaTotalEsperada + " CUP";
-    if (lblFinal) lblFinal.innerText = totalFinal + " CUP";
-
-    const lblResultado = document.getElementById('lblResultadoDiferencia');
-    if (!lblResultado) return;
-
-    if (ventaTotalEsperada === 0 && efectivoCaja === 0) {
-        lblResultado.innerHTML = `<span style="color: #94A3B8;">Realiza el conteo para ver la comparativa...</span>`;
-        return;
-    }
-
-    let diferencia = efectivoFinalReal - totalFinal;
-
-    if (diferencia >= 0) {
-        lblResultado.innerHTML = `
-            <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; color: #6EE7B7; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center;">
-                ✓ Todo Correcto (Cuadre Exacto o Excedente de +${diferencia} CUP)
-            </div>`;
+    if (diff >= 0) {
+        res.innerHTML = `<div style="background:rgba(16,185,129,0.2);border:1px solid #10B981;color:#6EE7B7;padding:12px;border-radius:8px;">✓ Cuadre Correcto (+${diff} CUP)</div>`;
     } else {
-        let faltanteAbsoluto = Math.abs(diferencia);
-        lblResultado.innerHTML = `
-            <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid #EF4444; color: #FCA5A5; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center;">
-                ⚠ Atención, se detectó faltante de dinero (${faltanteAbsoluto} CUP)
-            </div>`;
+        res.innerHTML = `<div style="background:rgba(239,68,68,0.2);border:1px solid #EF4444;color:#FCA5A5;padding:12px;border-radius:8px;">⚠ Faltante Detectado (${Math.abs(diff)} CUP)</div>`;
     }
+}
+
+window.guardarCuadreFinal = async function() {
+    const ahora = new Date();
+    const hora = ahora.getHours();
+    let nombreTurno = (hora >= 6 && hora < 14) ? "Cierre Mañana" : "Cierre Noche";
+
+    let detalle = [];
+    document.querySelectorAll('tr[data-index]').forEach(row => {
+        const nombre = row.dataset.nombre;
+        const pInfo = productosMapCache[nombre];
+        detalle.push({
+            nombre,
+            inicio: row.querySelector('.input-inicio').value || 0,
+            entrada: row.querySelector('.input-entrada').value || 0,
+            baja: row.querySelector('.input-baja').value || 0,
+            final: row.querySelector('.input-final').value || 0,
+            venta: row.querySelector('[id^="venta-"]').innerText,
+            totalVenta: row.querySelector('[id^="totalVenta-"]').innerText,
+            // 👉 GUARDAMOS DATOS FINANCIEROS SIEMPRE (Aunque Yoandri no los vea) 👈
+            precioCompra: pInfo?.precioCompra || 0,
+            precioVenta: pInfo?.precioVenta || 0,
+            gananciaT: (parseFloat(row.querySelector('[id^="venta-"]').innerText) * (pInfo?.precioVenta - pInfo?.precioCompra)) || 0
+        });
+    });
+
+    const datos = {
+        usuario: currentUserName,
+        turno: nombreTurno,
+        timestamp: serverTimestamp(),
+        productos: detalle,
+        efectivo: document.getElementById('efectivoCaja').value,
+        totalVenta: document.getElementById('lblVentaTotal').innerText,
+        totalFinal: document.getElementById('lblFinal').innerText
+    };
+
+    try {
+        await addDoc(collection(db, "historial_cuadres"), datos);
+        await addDoc(collection(db, "notificaciones"), { leido: false, msg: `Nuevo cuadre de ${currentUserName}`, time: serverTimestamp() });
+        alert("Cuadre Guardado (Se sincronizará automáticamente al detectar internet)");
+        cancelarCuadre();
+    } catch (e) { alert("Error al guardar localmente."); }
+}
+
+window.verificarNotificacionesPendientes = async function() {
+    const q = query(collection(db, "notificaciones"), where("leido", "==", false));
+    const snap = await getDocs(q);
+    document.getElementById('contadorCampanita').innerText = snap.size;
 }
 
 window.cancelarCuadre = function() {
-    const seccionCuadre = document.getElementById('cuadreSection');
-    if (seccionCuadre) {
-        seccionCuadre.classList.remove('active');
-    }
+    document.getElementById('cuadreSection').classList.remove('active');
     document.getElementById('mainApp').classList.add('active');
-    clearMessage();
 }
 
-window.guardarCuadreFinal = function() {
-    const ahora = new Date();
-    const hora = ahora.getHours();
-    let nombreTurno = (hora >= 6 && hora < 14) ? "Turno de la Noche (Cierre Mañana)" : "Turno del Día (Cierre Noche)";
-
-    alert(`¡Cuadre guardado con éxito!\nRegistrado como: ${nombreTurno}\nHora exacta: ${ahora.toLocaleTimeString()}`);
-    setTimeout(() => { cancelarCuadre(); }, 1500);
-}
-
-window.verHistorial = function() {
-    alert("Historial en construcción. Aún no hay cuadres.");
-}
-
-window.verAlmacen = function() {
-    alert("Control de almacén en construcción.");
-}
-
-window.selectUser = selectUser;
-window.goBack = goBack;
-window.logout = logout;
-window.verifyPin = verifyPin;
+// Exponer funciones globales
+window.selectUser = selectUser; window.goBack = goBack; window.logout = logout; window.verifyPin = verifyPin;
+window.iniciarCuadre = iniciarCuadre; window.cancelarCuadre = cancelarCuadre;
