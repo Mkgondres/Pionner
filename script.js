@@ -140,7 +140,7 @@ window.iniciarCuadre = async function() {
             if (data.nombre) productosMapCache[data.nombre.trim()] = data;
         });
 
-        // Buscar el ÚLTIMO cuadre guardado para heredar la columna "Inicio"
+        // Buscar el ÚLTIMO cuadre guardado para heredar la columna "Inicio" de forma real
         let ultimosValoresFinales = {};
         try {
             const histRef = collection(db, "historial_cuadres");
@@ -206,7 +206,6 @@ window.iniciarCuadre = async function() {
         });
         container.innerHTML = html + '</table>';
 
-        // Recalcular filas con valores heredados de inicio
         document.querySelectorAll('tr[data-index]').forEach(row => {
             const idx = row.dataset.index;
             const nom = row.dataset.nombre;
@@ -498,12 +497,14 @@ window.volverAlHistorial = function() {
     document.getElementById('historialSection').classList.add('active');
 }
 
-// VER DETALLE COMPLETO CON TABLA IDÉNTICA Y DESGLOSE EN 3 PARTES
+// VER DETALLE CON PERMISOS DIFERENCIADOS (YOANDRI VS DUEÑAS) Y TABLA IDÉNTICA
 window.verDetalleCuadre = async function(id) {
     document.getElementById('historialSection').classList.remove('active');
     document.getElementById('detalleCuadreSection').classList.add('active');
     const container = document.getElementById('detalleContenidoContainer');
     container.innerHTML = '<p style="text-align:center; color:#94A3B8; padding:20px;">Cargando detalle completo...</p>';
+
+    const esYoandri = (currentUser === 'yoandri');
 
     try {
         const docRef = doc(db, "historial_cuadres", id);
@@ -514,11 +515,14 @@ window.verDetalleCuadre = async function(id) {
             document.getElementById('detalleTituloTurno').innerText = `Turno: ${h.turno}`;
             document.getElementById('detalleSubInfo').innerText = `Responsable: ${h.usuario} (${h.fecha})`;
 
-            // Tabla con cabeceras Sticky y mismo formato limpio que la de llenado
+            // Tabla idéntica a la de llenado con alternancia de colores y cabeceras Sticky
             let html = '<div style="max-height: 400px; overflow-y: auto;">';
             html += '<table style="width:100%; border-collapse:collapse; background:white; color:#0f172a; font-size:12px;">';
             html += '<tr style="background:#1e293b; color:white; text-align:center; position: sticky; top: 0; z-index: 10;">';
-            html += '<th style="padding:8px; text-align:left; background:#1e293b;">PRODUCTO</th><th style="background:#1e293b;">INICIO</th><th style="background:#1e293b;">ENTRADA</th><th style="background:#1e293b;">BAJA</th><th style="background:#1e293b;">FINAL</th><th style="background:#1e293b;">VENTA</th><th style="background:#1e293b;">P. COMPRA</th><th style="background:#1e293b;">P. VENTA</th><th style="background:#1e293b;">TOTAL VENTA</th><th style="background:#1e293b;">GANANCIA U</th><th style="background:#1e293b;">GANANCIA T</th>';
+            html += '<th style="padding:8px; text-align:left; background:#1e293b;">PRODUCTO</th><th style="background:#1e293b;">INICIO</th><th style="background:#1e293b;">ENTRADA</th><th style="background:#1e293b;">BAJA</th><th style="background:#1e293b;">FINAL</th><th style="background:#1e293b;">VENTA</th>';
+            if (!esYoandri) html += '<th style="background:#1e293b;">P. COMP</th>';
+            html += '<th style="background:#1e293b;">P. VNTA</th><th style="background:#1e293b;">TOTAL VNTA</th>';
+            if (!esYoandri) html += '<th style="background:#1e293b;">GANANCIA U</th><th style="background:#1e293b;">GANANCIA T</th>';
             html += '</tr>';
 
             if(h.productos && h.productos.length > 0) {
@@ -530,22 +534,23 @@ window.verDetalleCuadre = async function(id) {
                     html += `<tr style="background-color: ${bgColHist}; border-bottom:1px solid #e2e8f0; text-align:center;">`;
                     html += `<td style="padding:6px; text-align:left; font-weight:500;">${p.nombre}</td>`;
                     html += `<td>${p.inicio}</td><td>${p.entrada}</td><td>${p.baja}</td><td>${p.final}</td><td style="font-weight:bold;">${p.venta}</td>`;
-                    html += `<td>$${p.precioCompra || 0}</td><td>$${p.precioVenta || 0}</td><td style="color:#059669; font-weight:bold;">$${p.totalVenta}</td>`;
-                    html += `<td style="color:#047857;">$${p.gananciaU || 0}</td><td style="color:#047857; font-weight:bold;">$${p.gananciaT || 0}</td>`;
+                    if (!esYoandri) html += `<td>$${p.precioCompra || 0}</td>`;
+                    html += `<td style="font-weight: bold;">$${p.precioVenta || 0}</td><td style="color:#059669; font-weight:bold;">$${p.totalVenta}</td>`;
+                    if (!esYoandri) {
+                        html += `<td style="color:#047857;">$${p.gananciaU || 0}</td><td style="color:#047857; font-weight:bold;">$${p.gananciaT || 0}</td>`;
+                    }
                     html += `</tr>`;
                 });
             }
             html += '</table></div>';
 
-            // EXTRACCIÓN DE DATOS PARA CÁLCULOS Y CONCLUSIONES
+            // EXTRACCIÓN DE DATOS
             const fin = h.financiero || {};
             let ventaTotalNum = parseFloat((fin.ventaTotal || "0").replace(/[^0-9.]/g, '')) || 0;
             let efectivoNum = parseFloat(fin.efectivo || 0) || 0;
             
-            // Transferencias formateadas exactamente como pediste
             let transfArr = fin.transferencias || [];
             let sumaTransf = transfArr.reduce((a, b) => a + b, 0);
-            let transfTexto = transfArr.length > 1 ? `(${transfArr.length}) : ${sumaTransf} CUP` : `${sumaTransf} CUP`;
 
             let gastosArr = fin.gastos || [];
             let sumaGastos = gastosArr.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
@@ -587,10 +592,13 @@ window.verDetalleCuadre = async function(id) {
             }
             html += `</li>`;
 
-            html += `<li style="margin-top:5px;"><strong>Ganancia Bruta:</strong> ${gananciaBrutaNum} CUP</li>`;
+            // Ganancia Bruta oculta para Yoandri
+            if (!esYoandri) {
+                html += `<li style="margin-top:5px;"><strong>Ganancia Bruta:</strong> ${gananciaBrutaNum} CUP</li>`;
+            }
             html += `</ul>`;
 
-            // --- SECCIÓN 2: CÁLCULOS (En plural) ---
+            // --- SECCIÓN 2: CÁLCULOS ---
             let finalCalculado = ventaTotalNum - sumaTransf - sumaGastos - sumaSalarios;
             let efectivoRecaudado = efectivoNum - sumaSalarios;
             let gananciaNeta = gananciaBrutaNum - sumaGastos - sumaSalarios;
@@ -606,11 +614,15 @@ window.verDetalleCuadre = async function(id) {
             html += `  <div>${efectivoNum} &rarr; Efectivo en caja</div>`;
             html += `  <div>- ${sumaSalarios} &rarr; salarios</div>`;
             html += `  <div style="border-top:1px solid #0f172a; font-weight:bold; margin-top:2px; padding-top:2px;">= ${efectivoRecaudado} &rarr; Efectivo recaudado</div>`;
-            html += `<br>`;
-            html += `  <div>${gananciaBrutaNum} &rarr; Ganancia Bruta</div>`;
-            html += `  <div>- ${sumaGastos} &rarr; gastos</div>`;
-            html += `  <div>- ${sumaSalarios} &rarr; salarios</div>`;
-            html += `  <div style="border-top:1px solid #0f172a; font-weight:bold; margin-top:2px; padding-top:2px;">= ${gananciaNeta} &rarr; Ganancia Neta</div>`;
+            
+            // Cálculo de ganancia neta oculto para Yoandri
+            if (!esYoandri) {
+                html += `<br>`;
+                html += `  <div>${gananciaBrutaNum} &rarr; Ganancia Bruta</div>`;
+                html += `  <div>- ${sumaGastos} &rarr; gastos</div>`;
+                html += `  <div>- ${sumaSalarios} &rarr; salarios</div>`;
+                html += `  <div style="border-top:1px solid #0f172a; font-weight:bold; margin-top:2px; padding-top:2px;">= ${gananciaNeta} &rarr; Ganancia Neta</div>`;
+            }
             html += `</div>`;
 
             // --- SECCIÓN 3: CONCLUSIONES ---
@@ -627,7 +639,11 @@ window.verDetalleCuadre = async function(id) {
             html += `<h5 style="color:#0f766e; margin-bottom:6px; font-size:13px; text-transform:uppercase; border-top:1px dashed #cbd5e1; padding-top:8px;">Conclusiones:</h5>`;
             html += `<ul style="margin-left:15px; margin-bottom:0; list-style-type:disc;">`;
             html += `<li>${textoConclusionCaja}</li>`;
-            html += `<li style="margin-top:4px;">Ganancia neta: ${gananciaNeta} CUP, este monto representa el ${porcentajeVenta}% de la venta.</li>`;
+            
+            // Segunda conclusión (Ganancia Neta y Porcentaje) oculta para Yoandri
+            if (!esYoandri) {
+                html += `<li style="margin-top:4px;">Ganancia neta: ${gananciaNeta} CUP, este monto representa el ${porcentajeVenta}% de la venta.</li>`;
+            }
             html += `</ul>`;
 
             html += `</div>`;
