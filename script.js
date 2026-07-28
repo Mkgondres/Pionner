@@ -372,4 +372,3 @@ window.selectUser = selectUser;
 window.goBack = goBack;
 window.logout = logout;
 window.verifyPin = verifyPin;
-
