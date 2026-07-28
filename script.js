@@ -771,7 +771,7 @@ window.verAlmacen = function() { alert("Control de almacén en construcción.");
 window.selectUser = selectUser; window.goBack = goBack; window.logout = logout; window.verifyPin = verifyPin;
 window.iniciarCuadre = iniciarCuadre; window.cancelarCuadre = cancelarCuadre;
 
-// Función para generar e imprimir el IPB Limpio (Modo Ahorro de Tinta)
+// Función para generar e imprimir el IPB Limpio (Modo Ahorro de Tinta y Espacio Optimizado)
 window.descargarIPBLimpio = function() {
     // Comprobamos los permisos para dibujar solo las columnas autorizadas
     const esYoandri = (currentUser === 'yoandri');
@@ -781,30 +781,39 @@ window.descargarIPBLimpio = function() {
     <html lang="es">
     <head>
         <meta charset="UTF-8">
-        <title>IPB Limpio - Pionner</title>
+        <title>IPV - Pionner</title>
         <style>
-            /* Ajustes para hoja tamaño A4 o Carta */
-            @page { margin: 1.5cm; }
-            body { font-family: Arial, sans-serif; font-size: 11px; color: #000; background: #fff; margin: 0; padding: 0; }
-            h2 { text-align: center; margin-bottom: 15px; font-size: 16px; text-transform: uppercase; }
+            /* Ajustes para hoja Carta (Letter), márgenes mínimos para aprovechar al máximo */
+            @page { size: letter portrait; margin: 0.5cm; }
+            body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; margin: 0; padding: 0; }
+            h2 { text-align: center; margin-bottom: 8px; margin-top: 0; font-size: 14px; text-transform: uppercase; }
             table { width: 100%; border-collapse: collapse; }
             
-            /* Esta es la regla mágica que repite el encabezado en cada página */
+            /* Repite el encabezado en cada página */
             thead { display: table-header-group; } 
-            tr { page-break-inside: avoid; } /* Evita que una fila se parta a la mitad entre dos páginas */
+            tr { page-break-inside: avoid; }
             
-            /* BLANCO Y NEGRO PURO: Cero colores de fondo para ahorrar tinta */
-            th, td { border: 1px solid #000; padding: 10px 4px; text-align: center; height: 15px; background: #fff !important; color: #000 !important; }
-            th { font-weight: bold; font-size: 10px; }
+            /* Celdas mucho más compactas para que quepan 50-60 filas por hoja */
+            th, td { 
+                border: 1px solid #000; 
+                padding: 4px 2px; /* Reducido drásticamente el alto */
+                text-align: center; 
+                height: 16px; 
+                background: #fff !important; 
+                color: #000 !important; 
+                font-size: 10px;
+            }
+            th { font-weight: bold; font-size: 9px; }
             
-            /* La primera columna (Producto) más ancha y alineada a la izquierda */
-            td:first-child { text-align: left; font-weight: bold; width: 35%; padding-left: 8px; } 
+            /* Ajuste de columnas específicos */
+            .col-num { width: 3%; font-weight: bold; } /* Columna de numeración (1, 2, 3...) */
+            .col-prod { text-align: left; font-weight: bold; width: 22%; padding-left: 4px; } /* Más estrecha que antes */
             
             /* Categorías resaltadas solo con tipografía y bordes (Cero tinta de fondo) */
             .categoria { 
                 text-align: left !important; 
-                padding: 8px; 
-                font-size: 12px; 
+                padding: 5px 8px; 
+                font-size: 11px; 
                 font-weight: bold; 
                 font-style: italic;
                 border-top: 2px solid #000; 
@@ -813,11 +822,12 @@ window.descargarIPBLimpio = function() {
         </style>
     </head>
     <body>
-        <h2>Formato de Llenado - Inventario de Productos (IPB)</h2>
+        <h2>IPV - Pionner</h2>
         <table>
             <thead>
                 <tr>
-                    <th>PRODUCTO</th>
+                    <th class="col-num">#</th>
+                    <th class="col-prod">PRODUCTO</th>
                     <th>INICIO</th>
                     <th>ENTRADA</th>
                     <th>BAJA</th>
@@ -832,16 +842,19 @@ window.descargarIPBLimpio = function() {
             <tbody>
     `;
 
-    // Recorremos el inventario original con todas sus categorías
+    let contadorProductos = 1;
+
+    // Recorremos el inventario original
     ORDEN_MAESTRO.forEach(item => {
         if (item.startsWith("***")) {
-            // Fila de categoría (Usa el colspan dinámico dependiendo del usuario)
-            const colspan = esYoandri ? 8 : 11;
+            // Fila de categoría (Suma 1 al colspan por la nueva columna de numeración)
+            const colspan = esYoandri ? 9 : 12;
             html += `<tr><td colspan="${colspan}" class="categoria">${item}</td></tr>`;
         } else {
-            // Fila de producto (Todas las columnas limpias/vacías excepto la primera)
+            // Fila de producto
             html += `<tr>
-                <td>${item}</td>
+                <td class="col-num">${contadorProductos++}</td>
+                <td class="col-prod">${item}</td>
                 <td></td><td></td><td></td><td></td><td></td>`;
             if (!esYoandri) html += `<td></td>`;
             html += `<td></td><td></td>`;
@@ -854,7 +867,6 @@ window.descargarIPBLimpio = function() {
             </tbody>
         </table>
         <script>
-            // Al terminar de cargar la vista, lanza automáticamente el menú de imprimir/guardar PDF
             window.onload = function() { 
                 setTimeout(() => { window.print(); }, 500);
             }
@@ -863,13 +875,13 @@ window.descargarIPBLimpio = function() {
     </html>
     `;
 
-    // Abre una nueva pestaña/ventana e inyecta el documento
     const printWindow = window.open('', '_blank');
     if (printWindow) {
         printWindow.document.write(html);
         printWindow.document.close();
     } else {
-        alert("Por favor, permite las ventanas emergentes (pop-ups) para descargar el IPB.");
+        alert("Por favor, permite las ventanas emergentes (pop-ups) para descargar el IPV.");
     }
 }
+
 
