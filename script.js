@@ -78,6 +78,11 @@ async function verifyPin() {
         showMessage('Por favor, ingresa tu PIN de 4 dígitos.', 'error');
         return;
     }
+
+    try {
+        const docRef = doc(db, "usuarios", currentUser);
+        const docSnap = await getDoc(docRef);
+
         if (docSnap.exists()) {
             if (pinIngresado === docSnap.data().pin) {
                 
@@ -90,15 +95,6 @@ async function verifyPin() {
                 } catch(e) { console.log("Cargando orden por defecto"); }
                 // -----------------------------------------------------------
 
-                document.getElementById('authSection').classList.remove('active');
-                document.getElementById('mainApp').classList.add('active');
-
-    try {
-        const docRef = doc(db, "usuarios", currentUser);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            if (pinIngresado === docSnap.data().pin) {
                 document.getElementById('authSection').classList.remove('active');
                 document.getElementById('mainApp').classList.add('active');
                 configurarPantallaPrincipal(currentUser, currentUserName);
@@ -114,6 +110,7 @@ async function verifyPin() {
         configurarPantallaPrincipal(currentUser, currentUserName);
     }
 }
+
 
 window.configurarPantallaPrincipal = function(userId, userName) {
     document.getElementById('welcomeUserText').innerText = `Usuario activo: ${userName}`;
