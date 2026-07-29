@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { 
     getFirestore, doc, getDoc, getDocs, collection, addDoc, 
-    serverTimestamp, query, where, enableIndexedDbPersistence, deleteDoc, orderBy, limit 
+    serverTimestamp, query, where, enableIndexedDbPersistence, deleteDoc, orderBy, limit, setDoc
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
