@@ -78,6 +78,20 @@ async function verifyPin() {
         showMessage('Por favor, ingresa tu PIN de 4 dígitos.', 'error');
         return;
     }
+        if (docSnap.exists()) {
+            if (pinIngresado === docSnap.data().pin) {
+                
+                // --- DESCARGAR EL ORDEN DEL INVENTARIO PARA NUEVOS INICIOS ---
+                try {
+                    const ordenSnap = await getDoc(doc(db, "configuracion", "orden_inventario"));
+                    if (ordenSnap.exists() && ordenSnap.data().orden) {
+                        ORDEN_MAESTRO = ordenSnap.data().orden;
+                    }
+                } catch(e) { console.log("Cargando orden por defecto"); }
+                // -----------------------------------------------------------
+
+                document.getElementById('authSection').classList.remove('active');
+                document.getElementById('mainApp').classList.add('active');
 
     try {
         const docRef = doc(db, "usuarios", currentUser);
@@ -444,14 +458,16 @@ window.verNotificaciones = async function() {
         const snap = await getDocs(q);
         let html = '';
         
-        snap.forEach(docSnap => {
+                snap.forEach(docSnap => {
             const n = docSnap.data();
-            const nombreTurnoLimpio = limpiarNombreTurno(n.turno);
+            const textoNotif = n.msg || "Nueva notificación"; 
+            
             html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}', '${n.cuadreId}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer;">
-                <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 Yoandri envió cuadre nuevo (${nombreTurnoLimpio})</p>
-                <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver el cuadre directo y cerrar la alerta</span>
+                <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 ${textoNotif}</p>
+                <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver o marcar como leída</span>
             </div>`;
         });
+
         container.innerHTML = html || '<p style="color:#94A3B8; text-align:center;">No hay notificaciones pendientes.</p>';
     } catch(e) {
         container.innerHTML = '<p style="color:#EF4444; text-align:center;">Error al cargar.</p>';
@@ -1107,28 +1123,128 @@ window.cerrarAjustes = function() {
     }
 }
 
-// Botón "Guardar todos los cambios"
-document.getElementById('btn-guardar-ajustes').addEventListener('click', () => {
-    // [Fase 3: Aquí pondremos la conexión con Firebase próximamente]
+// 7. Botón Guardar Cambios (FASE 3: Conexión Total con Firebase - EN VIVO)
+document.getElementById('btn-guardar-ajustes').addEventListener('click', async () => {
+    const btnGuardar = document.getElementById('btn-guardar-ajustes');
     
-    inventarioModificado = false;
+    btnGuardar.disabled = true;
+    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando cambios...';
 
-    // Cartel estético de éxito
-    document.getElementById('modalIcon').innerText = "✓";
-    document.getElementById('modalTitle').innerText = "¡Guardado Exitoso!";
-    document.getElementById('modalMessage').innerText = "Los cambios en el inventario se han actualizado correctamente.";
-
-    const btnAceptarModal = document.querySelector('#customModal .btn-primary');
-    
-    // Sobrescribir temporalmente la función para que redirija al menú
-    btnAceptarModal.onclick = function() {
-        document.getElementById('customModal').style.display = 'none';
-        document.getElementById('seccion-ajustes-inventario').classList.remove('active');
-        document.getElementById('mainApp').classList.add('active');
+    try {
+        const { setDoc, deleteDoc, doc, collection, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js");
         
-        // Devolver la función original al botón
-        btnAceptarModal.setAttribute('onclick', 'cerrarModalCustom()');
-    };
+        const filas = document.querySelectorAll('#body-ajustes-inventario tr');
+        let nuevoOrden = [];
+        let cambiosLog = []; 
+        let productosActuales = []; 
 
-    document.getElementById('customModal').style.display = 'flex';
+        // 1. Recorremos la tabla
+        for (let fila of filas) {
+            if (fila.classList.contains('fila-categoria-ajuste')) {
+                nuevoOrden.push(fila.innerText.trim());
+            } else if (fila.classList.contains('fila-producto-ajuste')) {
+                const nombre = fila.querySelector('.input-nombre').value.trim();
+                const pCompra = parseFloat(fila.querySelector('.input-compra').value) || 0;
+                const pVenta = parseFloat(fila.querySelector('.input-venta').value) || 0;
+                
+                nuevoOrden.push(nombre);
+                productosActuales.push(nombre);
+
+                const dataCache = productosMapCache[nombre];
+                const productoRef = doc(db, "productos", nombre); 
+                
+                if (!dataCache) {
+                    await setDoc(productoRef, { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta });
+                    cambiosLog.push(`añadió "${nombre}"`);
+                } else if (dataCache.precioCompra !== pCompra || dataCache.precioVenta !== pVenta) {
+                    await setDoc(productoRef, { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta }, { merge: true });
+                    cambiosLog.push(`actualizó precios de "${nombre}"`);
+                }
+            }
+        }
+
+        // 2. Detectamos eliminados
+        for (let nombreEnCache in productosMapCache) {
+            if (!productosActuales.includes(nombreEnCache)) {
+                await deleteDoc(doc(db, "productos", nombreEnCache));
+                cambiosLog.push(`eliminó "${nombreEnCache}"`);
+            }
+        }
+
+        // 3. Guardamos NUEVO ORDEN
+        const ordenRef = doc(db, "configuracion", "orden_inventario");
+        await setDoc(ordenRef, { orden: nuevoOrden });
+
+        // 4. Notificación
+        if (cambiosLog.length > 0) {
+            const mensajeResumen = `${currentUserName} ${cambiosLog.join(', ')}.`;
+            
+            await addDoc(collection(db, "notificaciones"), {
+                leido: false,
+                msg: mensajeResumen,
+                time: serverTimestamp(),
+                usuario: currentUserName,
+                tipo: "ajuste_inventario"
+            });
+        }
+
+        // 5. Mostrar cartel de ÉXITO
+        inventarioModificado = false;
+        btnGuardar.disabled = false;
+        btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar todos los cambios';
+
+        document.getElementById('modalIcon').innerText = "✓";
+        document.getElementById('modalTitle').innerText = "¡Guardado Exitoso!";
+        document.getElementById('modalMessage').innerText = "El inventario fue actualizado. Los datos ya están sincronizados.";
+
+        const btnAceptarModal = document.querySelector('#customModal .btn-primary');
+        btnAceptarModal.onclick = function() {
+            
+            // --- ACTUALIZACIÓN EN VIVO (Sin salir de la app) ---
+            document.getElementById('customModal').style.display = 'none';
+            
+            // Reemplazamos el orden viejo por el nuevo en la memoria
+            ORDEN_MAESTRO = nuevoOrden;
+
+            // Limpiamos los productos eliminados de la memoria temporal
+            for (let nombreEnCache in productosMapCache) {
+                if (!productosActuales.includes(nombreEnCache)) {
+                    delete productosMapCache[nombreEnCache]; 
+                }
+            }
+
+            // Actualizamos la memoria con los precios nuevos o productos añadidos
+            const filasParaCache = document.querySelectorAll('#body-ajustes-inventario tr.fila-producto-ajuste');
+            for (let fila of filasParaCache) {
+                const nombre = fila.querySelector('.input-nombre').value.trim();
+                const pCompra = parseFloat(fila.querySelector('.input-compra').value) || 0;
+                const pVenta = parseFloat(fila.querySelector('.input-venta').value) || 0;
+                
+                productosMapCache[nombre] = {
+                    nombre: nombre,
+                    precioCompra: pCompra,
+                    precioVenta: pVenta
+                };
+            }
+            // ----------------------------------------------------
+        };
+        document.getElementById('customModal').style.display = 'flex';
+
+    } catch (error) {
+        console.error("Error al guardar en Firebase:", error);
+        
+        // Usamos tu modal personalizado para el error también (sin alerts nativos)
+        document.getElementById('modalIcon').innerText = "⚠";
+        document.getElementById('modalTitle').innerText = "Error al Guardar";
+        document.getElementById('modalMessage').innerText = "Hubo un problema de conexión. Revisa tu internet y vuelve a intentarlo.";
+        
+        const btnAceptarModal = document.querySelector('#customModal .btn-primary');
+        btnAceptarModal.onclick = function() {
+            document.getElementById('customModal').style.display = 'none';
+        };
+        document.getElementById('customModal').style.display = 'flex';
+
+        btnGuardar.disabled = false;
+        btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar todos los cambios';
+    }
 });
