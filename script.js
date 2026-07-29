@@ -900,3 +900,113 @@ window.descargarIPBLimpio = function() {
         alert("Por favor, permite las ventanas emergentes (pop-ups) para descargar el IPV.");
     }
 }
+/* ========================================== */
+/* LÓGICA: AJUSTES DE INVENTARIO              */
+/* ========================================== */
+
+// 1. Función principal para pintar la tabla con el ORDEN_MAESTRO
+function cargarTablaAjustes() {
+    const tbody = document.getElementById('body-ajustes-inventario');
+    tbody.innerHTML = '';
+
+    // NOTA: Aquí asumimos que tienes acceso a tu array ORDEN_MAESTRO 
+    // y a los datos de Firebase (ej: inventarioActual) para sacar los precios.
+    ORDEN_MAESTRO.forEach(item => {
+        const tr = document.createElement('tr');
+
+        if (item.startsWith('***')) {
+            // Es una fila de Categoría (Ej: *** SNACKS ***)
+            tr.className = 'fila-categoria-ajuste no-drag'; // 'no-drag' evita que se pueda arrastrar la categoría
+            tr.innerHTML = `<td colspan="5">${item}</td>`;
+        } else {
+            // Es un Producto normal
+            tr.className = 'fila-producto-ajuste';
+            
+            // --- CONEXIÓN CON TUS DATOS ---
+            // Aquí debes sustituir estos ceros por los valores reales que vienen de tu base de datos
+            // Por ejemplo: inventarioActual[item].precioCompra
+            let precioCompraActual = 0; 
+            let precioVentaActual = 0;  
+
+            tr.innerHTML = `
+                <td class="col-drag"><i class="fas fa-bars drag-handle"></i></td>
+                <td class="col-nombre">
+                    <span class="nombre-prod-texto">${item}</span>
+                    <input type="hidden" class="input-nombre" value="${item}">
+                </td>
+                <td class="col-precio">
+                    <input type="number" class="input-ajuste-precio input-compra" value="${precioCompraActual}">
+                </td>
+                <td class="col-precio">
+                    <input type="number" class="input-ajuste-precio input-venta" value="${precioVentaActual}">
+                </td>
+                <td class="col-accion">
+                    <button class="btn-eliminar-fila"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+        }
+        tbody.appendChild(tr);
+    });
+
+    // Activar el Arrastrar y Soltar después de pintar la tabla
+    activarDragAndDrop();
+}
+
+// 2. Función para activar SortableJS (Arrastrar y soltar)
+function activarDragAndDrop() {
+    const tbody = document.getElementById('body-ajustes-inventario');
+    new Sortable(tbody, {
+        handle: '.drag-handle', // Solo permite arrastrar si tocan el icono de las rayitas
+        animation: 150,         // Animación suave
+        filter: '.no-drag',     // No permite arrastrar las filas de categoría
+        ghostClass: 'sortable-ghost', // Clase CSS que se aplica mientras arrastras (opcional)
+    });
+}
+
+// 3. Lógica para el botón "+ Añadir Producto"
+document.getElementById('btn-add-producto').addEventListener('click', () => {
+    const nombreProducto = prompt("Ingresa el nombre del nuevo producto (Ej: Refresco Lata):");
+    
+    // Si el usuario cancela o deja vacío, no hacemos nada
+    if (!nombreProducto || nombreProducto.trim() === '') return; 
+
+    const tbody = document.getElementById('body-ajustes-inventario');
+    const tr = document.createElement('tr');
+    tr.className = 'fila-producto-ajuste';
+    
+    tr.innerHTML = `
+        <td class="col-drag"><i class="fas fa-bars drag-handle"></i></td>
+        <td class="col-nombre">
+            <span class="nombre-prod-texto" style="color: #28a745;">${nombreProducto} (Nuevo)</span>
+            <input type="hidden" class="input-nombre" value="${nombreProducto}">
+        </td>
+        <td class="col-precio">
+            <input type="number" class="input-ajuste-precio input-compra" value="0">
+        </td>
+        <td class="col-precio">
+            <input type="number" class="input-ajuste-precio input-venta" value="0">
+        </td>
+        <td class="col-accion">
+            <button class="btn-eliminar-fila"><i class="fas fa-trash"></i></button>
+        </td>
+    `;
+    
+    // Inserta el producto nuevo justo arriba del todo (luego tú lo arrastras a su categoría)
+    tbody.insertBefore(tr, tbody.firstChild);
+});
+
+// 4. Lógica para el botón del safacón (Eliminar fila)
+document.getElementById('body-ajustes-inventario').addEventListener('click', (e) => {
+    // Detectamos si tocaron el botón de eliminar o el icono del basurero
+    const btnEliminar = e.target.closest('.btn-eliminar-fila');
+    if (btnEliminar) {
+        const fila = btnEliminar.closest('tr');
+        const nombreProducto = fila.querySelector('.input-nombre').value;
+        
+        // Mensaje de confirmación
+        const confirmar = confirm(`¿Seguro que deseas quitar "${nombreProducto}" de la lista?`);
+        if (confirmar) {
+            fila.remove(); // Borramos la fila de la pantalla
+        }
+    }
+});
