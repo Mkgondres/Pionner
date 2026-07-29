@@ -149,7 +149,6 @@ async function verifyPin() {
                 document.getElementById('authSection').classList.remove('active');
                 document.getElementById('mainApp').classList.add('active');
                 
-                // CORRECCIÓN: Usamos pushState para que puedas dar atrás hacia el PIN (3 -> 2 -> 1)
                 history.pushState({ id: 'mainApp' }, ''); 
                 
                 configurarPantallaPrincipal(currentUser, currentUserName);
@@ -821,7 +820,6 @@ window.verDetalleCuadre = async function(id) {
             }
             html += `</ul>`;
             
-            // EL BOTÓN DE ELIMINAR CUADRE (Solo visible para administradoras)
             if (!esYoandri) {
                 html += `<div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #cbd5e1;">
                             <button onclick="eliminarCuadre('${id}')" style="background-color: #EF4444; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; gap: 8px; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);">
@@ -845,7 +843,6 @@ window.verDetalleCuadre = async function(id) {
     }
 }
 
-// FUNCIÓN PARA ELIMINAR EL CUADRE CON DOBLE CONFIRMACIÓN
 window.eliminarCuadre = function(id) {
     solicitarConfirmacion({
         icono: "🗑️",
@@ -858,7 +855,6 @@ window.eliminarCuadre = function(id) {
                 mostrarCarga(true, "Eliminando registro...");
                 await deleteDoc(doc(db, "historial_cuadres", id));
                 mostrarCarga(false);
-                // Una vez eliminado, regresamos al historial general para que se actualice
                 history.back();
                 setTimeout(() => { verHistorial(); }, 100); 
             } catch (e) {
@@ -1193,9 +1189,15 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
                     await addDoc(collection(db, "productos"), { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta });
                     cambiosLog.push(`añadió "${nombre}"`);
                 } else if (dataCache.precioCompra !== pCompra || dataCache.precioVenta !== pVenta) {
+                    
+                    // Aquí se guarda el precio de compra internamente en Firebase
                     const productoRef = doc(db, "productos", dataCache.idReal);
                     await setDoc(productoRef, { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta }, { merge: true });
-                    cambiosLog.push(`actualizó precios de "${nombre}"`);
+                    
+                    // LA REGLA DE PRIVACIDAD: Solo notificamos si varió el precio de venta
+                    if (dataCache.precioVenta !== pVenta) {
+                        cambiosLog.push(`actualizó el precio de "${nombre}"`);
+                    }
                 }
             }
         }
