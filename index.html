@@ -210,12 +210,14 @@
 <!-- ========================================== -->
 <!-- SECCIÓN DE AJUSTES DE INVENTARIO -->
 <!-- ========================================== -->
-<section id="seccion-ajustes-inventario" class="pantalla" style="display: none;">
-    <div class="header-ajustes">
-        <h2>Ajustes de Inventario</h2>
+<section id="seccion-ajustes-inventario" class="screen">
+    <div class="header-ajustes" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <button class="btn-secondary" onclick="cerrarAjustes()" style="padding: 8px 12px; font-size: 13px;">Volver</button>
+        <h2 style="flex-grow: 1;">Ajustes de Inventario</h2>
         <!-- Botón para añadir un producto nuevo -->
         <button id="btn-add-producto" class="btn-add"><i class="fas fa-plus"></i> Añadir Producto</button>
     </div>
+
     
     <div class="contenedor-tabla-ajustes">
         <table id="tabla-ajustes-inventario">
