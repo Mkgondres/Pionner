@@ -317,3 +317,139 @@ body {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
 }
+/* ========================================== */
+/* ESTILOS: AJUSTES DE INVENTARIO             */
+/* ========================================== */
+
+#seccion-ajustes-inventario {
+    padding: 15px;
+    background-color: #f4f6f9; /* Fondo un poco gris para que la tabla resalte */
+}
+
+.header-ajustes {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.header-ajustes h2 {
+    margin: 0;
+    color: #333;
+    font-size: 18px;
+}
+
+.btn-add {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.contenedor-tabla-ajustes {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    overflow-x: auto; /* Permite scroll horizontal si la pantalla es muy estrecha */
+    margin-bottom: 20px;
+}
+
+#tabla-ajustes-inventario {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 340px;
+}
+
+#tabla-ajustes-inventario th {
+    background-color: #2c3e50;
+    color: white;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#tabla-ajustes-inventario td {
+    padding: 10px 5px;
+    border-bottom: 1px solid #edf2f7;
+    vertical-align: middle;
+}
+
+/* Estilos específicos de las columnas */
+.col-drag { width: 30px; text-align: center; }
+.col-nombre { text-align: left !important; font-weight: bold; font-size: 13px; color: #333; }
+.col-precio { width: 75px; text-align: center; }
+.col-accion { width: 40px; text-align: center; }
+
+/* Icono de las tres rayitas para arrastrar */
+.drag-handle {
+    color: #a0aec0;
+    font-size: 16px;
+    cursor: grab;
+}
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Campos de texto para los precios */
+.input-ajuste-precio {
+    width: 60px;
+    padding: 6px;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: bold;
+    color: #2d3748;
+}
+.input-ajuste-precio:focus {
+    outline: none;
+    border-color: #3182ce;
+    box-shadow: 0 0 0 2px rgba(49,130,206,0.2);
+}
+
+/* Botón de Safacón (Eliminar) */
+.btn-eliminar-fila {
+    background: none;
+    border: none;
+    color: #e53e3e;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 5px;
+}
+
+/* Filas divisorias (Categorías) */
+.fila-categoria-ajuste td {
+    background-color: #e2e8f0;
+    color: #4a5568;
+    font-weight: bold;
+    font-style: italic;
+    text-align: center !important;
+    font-size: 12px;
+    padding: 8px;
+}
+
+/* Botón Gigante de Guardar */
+.footer-ajustes {
+    text-align: center;
+    padding-bottom: 25px;
+}
+
+.btn-guardar-grande {
+    background-color: #3182ce;
+    color: white;
+    border: none;
+    padding: 15px 20px;
+    font-size: 16px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 90%;
+    max-width: 350px;
+    box-shadow: 0 4px 6px rgba(49, 130, 206, 0.3);
+}
