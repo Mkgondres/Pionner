@@ -771,7 +771,7 @@ window.verAlmacen = function() { alert("Control de almacén en construcción.");
 window.selectUser = selectUser; window.goBack = goBack; window.logout = logout; window.verifyPin = verifyPin;
 window.iniciarCuadre = iniciarCuadre; window.cancelarCuadre = cancelarCuadre;
 
-// Función para generar e imprimir el IPB Limpio (Modo Ahorro de Tinta y Espacio Optimizado)
+// Función para generar e imprimir el IPB Limpio (Modo Ahorro de Tinta y Espacio Optimizado al máximo)
 window.descargarIPBLimpio = function() {
     // Comprobamos los permisos para dibujar solo las columnas autorizadas
     const esYoandri = (currentUser === 'yoandri');
@@ -786,43 +786,58 @@ window.descargarIPBLimpio = function() {
             /* Ajustes para hoja Carta (Letter), márgenes mínimos para aprovechar al máximo */
             @page { size: letter portrait; margin: 0.5cm; }
             body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; margin: 0; padding: 0; }
-            h2 { text-align: center; margin-bottom: 8px; margin-top: 0; font-size: 14px; text-transform: uppercase; }
+            h2 { text-align: center; margin-bottom: 5px; margin-top: 0; font-size: 14px; text-transform: uppercase; }
+            
+            /* Contenedor para Trabajador y Fecha */
+            .info-header { 
+                display: flex; 
+                justify-content: space-between; 
+                padding: 0 20px; 
+                margin-bottom: 8px; 
+                font-size: 11px; 
+                font-weight: bold; 
+            }
+            
             table { width: 100%; border-collapse: collapse; }
             
             /* Repite el encabezado en cada página */
             thead { display: table-header-group; } 
             tr { page-break-inside: avoid; }
             
-            /* Celdas mucho más compactas para que quepan 50-60 filas por hoja */
+            /* Celdas AÚN MÁS compactas para ganar líneas extra por hoja */
             th, td { 
                 border: 1px solid #000; 
-                padding: 4px 2px; /* Reducido drásticamente el alto */
+                padding: 2px 2px; /* Relleno vertical llevado al mínimo */
                 text-align: center; 
-                height: 16px; 
+                height: 14px; /* Altura de celda más ajustada */
                 background: #fff !important; 
                 color: #000 !important; 
                 font-size: 10px;
             }
-            th { font-weight: bold; font-size: 9px; }
+            th { font-weight: bold; font-size: 9px; padding: 3px 2px; }
             
             /* Ajuste de columnas específicos */
             .col-num { width: 3%; font-weight: bold; } /* Columna de numeración (1, 2, 3...) */
-            .col-prod { text-align: left; font-weight: bold; width: 22%; padding-left: 4px; } /* Más estrecha que antes */
+            .col-prod { text-align: left; font-weight: bold; width: 22%; padding-left: 4px; }
             
-            /* Categorías resaltadas solo con tipografía y bordes (Cero tinta de fondo) */
+            /* Categorías: también ajustadas para no desperdiciar espacio */
             .categoria { 
                 text-align: left !important; 
-                padding: 5px 8px; 
-                font-size: 11px; 
+                padding: 3px 6px; 
+                font-size: 10px; 
                 font-weight: bold; 
                 font-style: italic;
-                border-top: 2px solid #000; 
-                border-bottom: 2px solid #000; 
+                border-top: 1.5px solid #000; 
+                border-bottom: 1.5px solid #000; 
             }
         </style>
     </head>
     <body>
         <h2>IPV - Pionner</h2>
+        <div class="info-header">
+            <span>Trabajador: _____________________________________________</span>
+            <span>Fecha: ______________________</span>
+        </div>
         <table>
             <thead>
                 <tr>
@@ -847,7 +862,7 @@ window.descargarIPBLimpio = function() {
     // Recorremos el inventario original
     ORDEN_MAESTRO.forEach(item => {
         if (item.startsWith("***")) {
-            // Fila de categoría (Suma 1 al colspan por la nueva columna de numeración)
+            // Fila de categoría
             const colspan = esYoandri ? 9 : 12;
             html += `<tr><td colspan="${colspan}" class="categoria">${item}</td></tr>`;
         } else {
@@ -883,5 +898,3 @@ window.descargarIPBLimpio = function() {
         alert("Por favor, permite las ventanas emergentes (pop-ups) para descargar el IPV.");
     }
 }
-
-
