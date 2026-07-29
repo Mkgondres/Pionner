@@ -207,6 +207,40 @@
             <button onclick="cerrarModalNotificaciones()" class="btn-secondary" style="width: 100%;">Cerrar</button>
         </div>
     </div>
+<!-- ========================================== -->
+<!-- SECCIÓN DE AJUSTES DE INVENTARIO -->
+<!-- ========================================== -->
+<section id="seccion-ajustes-inventario" class="pantalla" style="display: none;">
+    <div class="header-ajustes">
+        <h2>Ajustes de Inventario</h2>
+        <!-- Botón para añadir un producto nuevo -->
+        <button id="btn-add-producto" class="btn-add"><i class="fas fa-plus"></i> Añadir Producto</button>
+    </div>
+    
+    <div class="contenedor-tabla-ajustes">
+        <table id="tabla-ajustes-inventario">
+            <thead>
+                <tr>
+                    <th class="col-drag"></th> <!-- Espacio para el icono de arrastrar -->
+                    <th class="col-nombre">Producto</th>
+                    <th class="col-precio">P. Compra</th>
+                    <th class="col-precio">P. Venta</th>
+                    <th class="col-accion"></th> <!-- Espacio para el safacón (eliminar) -->
+                </tr>
+            </thead>
+            <tbody id="body-ajustes-inventario">
+                <!-- Las filas de los productos y categorías se inyectarán aquí con JavaScript en la Fase 2 -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer-ajustes">
+        <!-- Botón gigante para guardar todos los cambios de un golpe -->
+        <button id="btn-guardar-ajustes" class="btn-guardar-grande">
+            <i class="fas fa-save"></i> Guardar todos los cambios
+        </button>
+    </div>
+</section>
 
         
     
