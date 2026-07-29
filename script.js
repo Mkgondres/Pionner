@@ -798,7 +798,8 @@ window.descargarIPBLimpio = function() {
                 font-weight: bold; 
             }
             
-            table { width: 100%; border-collapse: collapse; }
+            /* ¡AQUÍ ESTÁ LA MAGIA! table-layout: fixed obliga a distribuir el espacio restante por igual */
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; }
             
             /* Repite el encabezado en cada página */
             thead { display: table-header-group; } 
@@ -813,6 +814,7 @@ window.descargarIPBLimpio = function() {
                 background: #fff !important; 
                 color: #000 !important; 
                 font-size: 10px;
+                word-wrap: break-word; /* Permite que el texto largo del encabezado baje de línea si es necesario */
             }
             th { font-weight: bold; font-size: 9px; padding: 3px 2px; }
             
