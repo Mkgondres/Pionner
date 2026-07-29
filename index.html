@@ -249,7 +249,19 @@
      <!-- Librería para Arrastrar y Soltar en Móviles y PC -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
    
-    
+    <!-- MODAL DE CONFIRMACIÓN (Para Eliminar Producto y para Salir sin Guardar) -->
+<div id="modalConfirmacionGenerico" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(5px); z-index: 1000; justify-content: center; align-items: center; padding: 20px;">
+    <div style="background: rgba(30, 41, 59, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); padding: 25px; border-radius: 16px; width: 100%; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <div id="modalConfirmIcon" style="font-size: 3rem; margin-bottom: 10px;">🗑️</div>
+        <h3 id="modalConfirmTitle" style="color: #F8FAFC; font-size: 1.2rem; margin-bottom: 10px;">Eliminar Producto</h3>
+        <p id="modalConfirmMessage" style="color: #94A3B8; font-size: 0.9rem; margin-bottom: 20px; line-height: 1.4;">¿Estás seguro de que deseas eliminar este producto?</p>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="cerrarModalConfirmacion()" class="btn-secondary" style="flex: 1;">Cancelar</button>
+            <button id="btnConfirmAction" class="btn-primary" style="flex: 1; background-color: #EF4444;">Eliminar</button>
+        </div>
+    </div>
+</div>
+
 
     <script type="module" src="script.js"></script>
 </body>
