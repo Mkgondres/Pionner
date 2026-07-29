@@ -1088,7 +1088,11 @@ window.gestionarMenu = async function() {
         productosMapCache = {};
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            if (data.nombre) productosMapCache[data.nombre.trim()] = data;
+            if (data.nombre) {
+                productosMapCache[data.nombre.trim()] = data;
+                // ESTA ES LA CLAVE: Guardamos el ID real de la base de datos
+                productosMapCache[data.nombre.trim()].idReal = docSnap.id; 
+            }
         });
 
         cargarTablaAjustes();
@@ -1098,6 +1102,7 @@ window.gestionarMenu = async function() {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error al cargar los datos</td></tr>';
     }
 }
+
 
 // Botón Volver con seguro anti-pérdida de datos
 window.cerrarAjustes = function() {
