@@ -21,6 +21,70 @@ enableIndexedDbPersistence(db).catch(() => {});
 let currentUser = '';
 let currentUserName = '';
 
+/* ========================================== */
+/* SISTEMA DE NAVEGACIÓN NATIVA Y CARGA       */
+/* ========================================== */
+
+// 1. Iniciamos el historial de navegación en la pantalla 1
+history.replaceState({ id: 'roleSelection' }, ''); 
+
+// 2. Pantalla de carga global (Evita que la pantalla se vea vacía mientras carga)
+window.mostrarCarga = function(mostrar, texto = 'Cargando...') {
+    let loader = document.getElementById('globalLoader');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'globalLoader';
+        loader.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.9); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#10B981; backdrop-filter:blur(8px);';
+        loader.innerHTML = `
+            <i class="fas fa-spinner fa-spin" style="font-size:3.5rem; margin-bottom:20px; text-shadow: 0 0 15px rgba(16,185,129,0.5);"></i>
+            <p id="loaderText" style="color:#F8FAFC; font-weight:600; font-size:1.1rem; letter-spacing:1px;"></p>
+        `;
+        document.body.appendChild(loader);
+    }
+    if (mostrar) {
+        document.getElementById('loaderText').innerText = texto;
+        loader.style.display = 'flex';
+    } else {
+        loader.style.display = 'none';
+    }
+};
+
+// 3. El cerebro del Botón de Retroceso del Teléfono
+window.addEventListener('popstate', (event) => {
+    const targetId = (event.state && event.state.id) ? event.state.id : 'roleSelection';
+    
+    // Si intentas dar atrás y estás en Ajustes con cambios sin guardar
+    const currentActive = document.querySelector('.screen.active');
+    if (currentActive && currentActive.id === 'seccion-ajustes-inventario' && inventarioModificado) {
+        history.pushState({ id: 'seccion-ajustes-inventario' }, ''); // Te mantiene en la pantalla
+        solicitarConfirmacion({
+            icono: "⚠️",
+            titulo: "Cambios sin guardar",
+            mensaje: "Tienes ajustes pendientes. Si sales ahora, se perderán todos los cambios.",
+            textoBoton: "Descartar",
+            colorBoton: "#EF4444",
+            alConfirmar: () => {
+                inventarioModificado = false;
+                history.back(); // Ahora sí retrocede
+            }
+        });
+        return;
+    }
+
+    // Si retrocedes a la pantalla principal de usuarios, cierra sesión por seguridad
+    if (targetId === 'roleSelection') {
+        currentUser = '';
+        currentUserName = '';
+        clearMessage();
+    }
+
+    // Cambia la pantalla visualmente de forma limpia
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(targetId).classList.add('active');
+});
+
+/* ========================================== */
+
 function limpiarNombreTurno(turnoStr) {
     if (!turnoStr) return "Turno Desconocido";
     if (turnoStr === "Cierre Noche") return "Turno de Noche";
@@ -52,21 +116,16 @@ function selectUser(userId, userName) {
     document.getElementById('userNameDisplay').textContent = '¡Hola, ' + userName + '!';
     document.getElementById('roleSelection').classList.remove('active');
     document.getElementById('authSection').classList.add('active');
+    history.pushState({ id: 'authSection' }, ''); // Registra el movimiento
 }
 
+// Botones de "Volver" ahora usan el historial nativo
 function goBack() {
-    currentUser = '';
-    currentUserName = '';
-    clearMessage();
-    document.getElementById('authSection').classList.remove('active');
-    document.getElementById('roleSelection').classList.add('active');
+    history.back();
 }
 
 function logout() {
-    currentUser = '';
-    currentUserName = '';
-    document.getElementById('mainApp').classList.remove('active');
-    document.getElementById('roleSelection').classList.add('active');
+    window.location.reload(); // Forma más limpia y segura de cerrar sesión
 }
 
 async function verifyPin() {
@@ -80,31 +139,37 @@ async function verifyPin() {
     }
 
     try {
+        mostrarCarga(true, 'Iniciando sesión...');
         const docRef = doc(db, "usuarios", currentUser);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
             if (pinIngresado === docSnap.data().pin) {
                 
-                // --- DESCARGAR EL ORDEN DEL INVENTARIO PARA NUEVOS INICIOS ---
                 try {
                     const ordenSnap = await getDoc(doc(db, "configuracion", "orden_inventario"));
                     if (ordenSnap.exists() && ordenSnap.data().orden) {
                         ORDEN_MAESTRO = ordenSnap.data().orden;
                     }
                 } catch(e) { console.log("Cargando orden por defecto"); }
-                // -----------------------------------------------------------
 
                 document.getElementById('authSection').classList.remove('active');
                 document.getElementById('mainApp').classList.add('active');
+                history.replaceState({ id: 'mainApp' }, ''); // Reemplaza la pantalla de PIN para no poder volver a ella sin contraseña
+                
                 configurarPantallaPrincipal(currentUser, currentUserName);
                 verificarNotificacionesPendientes();
+                mostrarCarga(false);
             } else {
+                mostrarCarga(false);
                 showMessage('PIN incorrecto.', 'error');
                 userPinInput.value = '';
             }
+        } else {
+            mostrarCarga(false);
         }
     } catch (e) {
+        mostrarCarga(false);
         document.getElementById('authSection').classList.remove('active');
         document.getElementById('mainApp').classList.add('active');
         configurarPantallaPrincipal(currentUser, currentUserName);
@@ -116,15 +181,15 @@ window.configurarPantallaPrincipal = function(userId, userName) {
     document.getElementById('welcomeUserText').innerText = `Usuario activo: ${userName}`;
     const btnCuadre = document.getElementById('btnIniciarCuadre');
     const btnAjustes = document.getElementById('btnAjustesMenu');
-    const btnIpb = document.getElementById('btnIpbLimpio'); // Llamamos al botón nuevo
+    const btnIpb = document.getElementById('btnIpbLimpio'); 
 
     if (userId === 'yoandri') {
         btnCuadre.style.display = 'block';
-        btnIpb.style.display = 'block'; // Se lo mostramos a Yoandri
+        btnIpb.style.display = 'block'; 
         btnAjustes.style.display = 'none';
     } else {
         btnCuadre.style.display = 'none';
-        btnIpb.style.display = 'none'; // Se lo ocultamos a las administradoras
+        btnIpb.style.display = 'none'; 
         btnAjustes.style.display = 'block';
     }
 }
@@ -147,11 +212,8 @@ let ORDEN_MAESTRO = [
 let productosMapCache = {};
 
 window.iniciarCuadre = async function() {
-    document.getElementById('mainApp').classList.remove('active');
-    document.getElementById('cuadreSection').classList.add('active');
+    mostrarCarga(true, 'Preparando Cuadre...');
     const container = document.getElementById('listaProductosContainer');
-    container.innerHTML = '<p style="text-align: center; color: #fff;">Cargando inventario...</p>';
-
     const esYoandri = (currentUser === 'yoandri');
 
     try {
@@ -176,9 +238,7 @@ window.iniciarCuadre = async function() {
                     });
                 }
             }
-        } catch(err) {
-            console.log("Error al buscar inicio:", err);
-        }
+        } catch(err) {}
 
         let html = '<table><tr><th>PRODUCTO</th><th>INICIO</th><th>ENTRADA</th><th>BAJA</th><th>FINAL</th><th>VENTA</th>';
         if (!esYoandri) html += '<th>PRECIO COMP</th>';
@@ -191,7 +251,6 @@ window.iniciarCuadre = async function() {
 
         ORDEN_MAESTRO.forEach((item) => {
             if (item.startsWith("***")) {
-                // AHORA ESTÁ ALINEADO A LA IZQUIERDA (text-align: left;)
                 html += `<tr style="background: #334155; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 10px; color: #f8fafc; text-align: left;">${item}</td></tr>`;
                 filaAlternada = false;
                 return;
@@ -238,7 +297,13 @@ window.iniciarCuadre = async function() {
             }
         });
 
-    } catch (e) { console.error(e); }
+        // Hacemos el salto de pantalla LUEGO de que la tabla esté armada
+        document.getElementById('mainApp').classList.remove('active');
+        document.getElementById('cuadreSection').classList.add('active');
+        history.pushState({ id: 'cuadreSection' }, '');
+
+    } catch (e) { console.error(e); } 
+    finally { mostrarCarga(false); }
 }
 
 window.calcularFilaProducto = function(index, precioVenta, precioCompra) {
@@ -473,18 +538,19 @@ window.verNotificaciones = async function() {
 
 window.abrirAtajoNotificacion = async function(notifId, cuadreId) {
     try {
+        mostrarCarga(true, "Abriendo Notificación...");
         await deleteDoc(doc(db, "notificaciones", notifId));
         document.getElementById('modalNotificaciones').style.display = 'none';
         verificarNotificacionesPendientes();
         
         if (cuadreId && cuadreId !== 'undefined' && cuadreId !== 'null') {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             verDetalleCuadre(cuadreId);
         } else {
             verHistorial(); 
         }
     } catch(e) {
         alert("Error al procesar el atajo.");
+        mostrarCarga(false);
     }
 }
 
@@ -493,11 +559,8 @@ window.cerrarModalNotificaciones = function() {
 }
 
 window.verHistorial = async function() {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('historialSection').classList.add('active');
-    
+    mostrarCarga(true, 'Buscando Registros...');
     const container = document.getElementById('listaHistorialContainer');
-    container.innerHTML = '<p style="text-align:center; color:#94A3B8;">Cargando historial...</p>';
 
     try {
         const qHistorial = query(collection(db, "historial_cuadres"), orderBy("timestamp", "desc"));
@@ -558,8 +621,15 @@ window.verHistorial = async function() {
             html = '<p style="text-align:center; color:#94A3B8;">No hay cuadres guardados aún.</p>';
         }
         container.innerHTML = html;
+
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('historialSection').classList.add('active');
+        history.pushState({ id: 'historialSection' }, '');
+
     } catch(e) {
         container.innerHTML = '<p style="text-align:center; color:#EF4444;">Error al cargar el historial.</p>';
+    } finally {
+        mostrarCarga(false);
     }
 }
 
@@ -576,22 +646,16 @@ window.toggleDateGroup = function(idx) {
 }
 
 window.cerrarHistorial = function() {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('mainApp').classList.add('active');
+    history.back();
 }
 
 window.volverAlHistorial = function() {
-    document.getElementById('detalleCuadreSection').classList.remove('active');
-    verHistorial(); 
+    history.back();
 }
 
 window.verDetalleCuadre = async function(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('detalleCuadreSection').classList.add('active');
-    
+    mostrarCarga(true, 'Abriendo Detalle...');
     const container = document.getElementById('detalleContenidoContainer');
-    container.innerHTML = '<p style="text-align:center; color:#94A3B8; padding:20px;">Cargando detalle completo...</p>';
-
     const esYoandri = (currentUser === 'yoandri');
 
     try {
@@ -626,7 +690,6 @@ window.verDetalleCuadre = async function(id) {
                 let filaAlternada = false;
                 const cajitaFakeCSS = "width: 50px; text-align: center; margin: 0 auto; font-weight: bold; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 0; color: #0f172a; display: block;";
 
-                // MAPA PARA RECONSTRUIR LAS CATEGORÍAS EN EL HISTORIAL
                 let prodGuardados = {};
                 h.productos.forEach(p => {
                     prodGuardados[p.nombre.trim()] = p;
@@ -634,7 +697,6 @@ window.verDetalleCuadre = async function(id) {
 
                 ORDEN_MAESTRO.forEach(item => {
                     if (item.startsWith("***")) {
-                        // AHORA ESTÁ ALINEADO A LA IZQUIERDA EN EL HISTORIAL TAMBIÉN (text-align: left;)
                         html += `<tr style="background: #334155; font-weight: bold;"><td colspan="${esYoandri ? 8 : 11}" style="padding: 10px; color: #f8fafc; text-align: left;">${item}</td></tr>`;
                         filaAlternada = false;
                         return;
@@ -768,15 +830,20 @@ window.verDetalleCuadre = async function(id) {
             html += `</div>`;
 
             container.innerHTML = html;
+
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('detalleCuadreSection').classList.add('active');
+            history.pushState({ id: 'detalleCuadreSection' }, '');
         }
     } catch(e) {
         container.innerHTML = '<p style="text-align:center; color:#EF4444; padding:20px;">Error al cargar el detalle.</p>';
+    } finally {
+        mostrarCarga(false);
     }
 }
 
 window.cancelarCuadre = function() {
-    document.getElementById('cuadreSection').classList.remove('active');
-    document.getElementById('mainApp').classList.add('active');
+    history.back();
 }
 
 window.verAlmacen = function() { alert("Control de almacén en construcción."); }
@@ -784,9 +851,7 @@ window.verAlmacen = function() { alert("Control de almacén en construcción.");
 window.selectUser = selectUser; window.goBack = goBack; window.logout = logout; window.verifyPin = verifyPin;
 window.iniciarCuadre = iniciarCuadre; window.cancelarCuadre = cancelarCuadre;
 
-// Función para generar e imprimir el IPB Limpio (Modo Ahorro de Tinta y Espacio Optimizado al máximo)
 window.descargarIPBLimpio = function() {
-    // Comprobamos los permisos para dibujar solo las columnas autorizadas
     const esYoandri = (currentUser === 'yoandri');
     
     let html = `
@@ -796,55 +861,18 @@ window.descargarIPBLimpio = function() {
         <meta charset="UTF-8">
         <title>IPV - Pionner</title>
         <style>
-            /* Ajustes para hoja Carta (Letter), márgenes mínimos para aprovechar al máximo */
             @page { size: letter portrait; margin: 0.5cm; }
             body { font-family: Arial, sans-serif; font-size: 10px; color: #000; background: #fff; margin: 0; padding: 0; }
             h2 { text-align: center; margin-bottom: 5px; margin-top: 0; font-size: 14px; text-transform: uppercase; }
-            
-            /* Contenedor para Trabajador y Fecha */
-            .info-header { 
-                display: flex; 
-                justify-content: space-between; 
-                padding: 0 20px; 
-                margin-bottom: 8px; 
-                font-size: 11px; 
-                font-weight: bold; 
-            }
-            
-            /* ¡AQUÍ ESTÁ LA MAGIA! table-layout: fixed obliga a distribuir el espacio restante por igual */
+            .info-header { display: flex; justify-content: space-between; padding: 0 20px; margin-bottom: 8px; font-size: 11px; font-weight: bold; }
             table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-            
-            /* Repite el encabezado en cada página */
             thead { display: table-header-group; } 
             tr { page-break-inside: avoid; }
-            
-            /* Celdas AÚN MÁS compactas para ganar líneas extra por hoja */
-            th, td { 
-                border: 1px solid #000; 
-                padding: 2px 2px; /* Relleno vertical llevado al mínimo */
-                text-align: center; 
-                height: 14px; /* Altura de celda más ajustada */
-                background: #fff !important; 
-                color: #000 !important; 
-                font-size: 10px;
-                word-wrap: break-word; /* Permite que el texto largo del encabezado baje de línea si es necesario */
-            }
+            th, td { border: 1px solid #000; padding: 2px 2px; text-align: center; height: 14px; background: #fff !important; color: #000 !important; font-size: 10px; word-wrap: break-word; }
             th { font-weight: bold; font-size: 9px; padding: 3px 2px; }
-            
-            /* Ajuste de columnas específicos */
-            .col-num { width: 3%; font-weight: bold; } /* Columna de numeración (1, 2, 3...) */
+            .col-num { width: 3%; font-weight: bold; } 
             .col-prod { text-align: left; font-weight: bold; width: 22%; padding-left: 4px; }
-            
-            /* Categorías: también ajustadas para no desperdiciar espacio */
-            .categoria { 
-                text-align: left !important; 
-                padding: 3px 6px; 
-                font-size: 10px; 
-                font-weight: bold; 
-                font-style: italic;
-                border-top: 1.5px solid #000; 
-                border-bottom: 1.5px solid #000; 
-            }
+            .categoria { text-align: left !important; padding: 3px 6px; font-size: 10px; font-weight: bold; font-style: italic; border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; }
         </style>
     </head>
     <body>
@@ -874,14 +902,11 @@ window.descargarIPBLimpio = function() {
 
     let contadorProductos = 1;
 
-    // Recorremos el inventario original
     ORDEN_MAESTRO.forEach(item => {
         if (item.startsWith("***")) {
-            // Fila de categoría
             const colspan = esYoandri ? 9 : 12;
             html += `<tr><td colspan="${colspan}" class="categoria">${item}</td></tr>`;
         } else {
-            // Fila de producto
             html += `<tr>
                 <td class="col-num">${contadorProductos++}</td>
                 <td class="col-prod">${item}</td>
@@ -897,9 +922,7 @@ window.descargarIPBLimpio = function() {
             </tbody>
         </table>
         <script>
-            window.onload = function() { 
-                setTimeout(() => { window.print(); }, 500);
-            }
+            window.onload = function() { setTimeout(() => { window.print(); }, 500); }
         </script>
     </body>
     </html>
@@ -913,14 +936,15 @@ window.descargarIPBLimpio = function() {
         alert("Por favor, permite las ventanas emergentes (pop-ups) para descargar el IPV.");
     }
 }
+
 /* ========================================== */
 /* LÓGICA: AJUSTES DE INVENTARIO              */
 /* ========================================== */
 
 let inventarioModificado = false;
 let accionConfirmacionPendiente = null;
+let motorArrastre = null;
 
-// 1. Detectar cambios al escribir precios
 function marcarCambios() {
     inventarioModificado = true;
 }
@@ -931,34 +955,22 @@ document.getElementById('body-ajustes-inventario').addEventListener('input', (e)
     }
 });
 
-// Variable para guardar el motor de arrastre y evitar duplicados (EL FIX DEL ARRASTRE)
-let motorArrastre = null;
-
-// 2. Función para activar SortableJS (Arrastrar y soltar)
 function activarDragAndDrop() {
     const tbody = document.getElementById('body-ajustes-inventario');
-    
-    // Si ya existe un motor funcionando de una visita anterior, lo destruimos.
-    if (motorArrastre !== null) {
-        motorArrastre.destroy();
-    }
+    if (motorArrastre !== null) { motorArrastre.destroy(); }
 
-    // Creamos un motor limpio
     motorArrastre = new Sortable(tbody, {
         handle: '.drag-handle', 
         animation: 150,         
         filter: '.no-drag',     
         ghostClass: 'sortable-ghost', 
-        forceFallback: true,    // Obliga a usar el motor propio
-        fallbackOnBody: true,   // Evita que los márgenes corten el arrastre
-        swapThreshold: 0.65,    // Hace que "encaje" mejor
-        onEnd: function () {
-            marcarCambios(); 
-        }
+        forceFallback: true,    
+        fallbackOnBody: true,   
+        swapThreshold: 0.65,    
+        onEnd: function () { marcarCambios(); }
     });
 }
 
-// 3. Función principal para pintar la tabla con el ORDEN_MAESTRO y Firebase
 function cargarTablaAjustes() {
     const tbody = document.getElementById('body-ajustes-inventario');
     tbody.innerHTML = '';
@@ -967,13 +979,10 @@ function cargarTablaAjustes() {
         const tr = document.createElement('tr');
 
         if (item.startsWith('***')) {
-            // Fila de Categoría
             tr.className = 'fila-categoria-ajuste no-drag'; 
             tr.innerHTML = `<td colspan="5">${item}</td>`;
         } else {
-            // Producto normal extrayendo precios del caché de Firebase
             tr.className = 'fila-producto-ajuste';
-            
             let prodData = productosMapCache[item] || {};
             let precioCompraActual = prodData.precioCompra || 0; 
             let precioVentaActual = prodData.precioVenta || 0;  
@@ -1001,7 +1010,6 @@ function cargarTablaAjustes() {
     activarDragAndDrop();
 }
 
-// 4. Lógica para el botón "+ Añadir Producto" (Con Modal)
 document.getElementById('btn-add-producto').addEventListener('click', () => {
     document.getElementById('inputNuevoProducto').value = '';
     document.getElementById('modalAddProducto').style.display = 'flex';
@@ -1037,7 +1045,6 @@ window.confirmarAddProducto = function() {
     marcarCambios();
 }
 
-// 5. Sistema Genérico de Confirmaciones (Estilo Glassmorphism)
 function solicitarConfirmacion({ icono, titulo, mensaje, textoBoton, colorBoton, alConfirmar }) {
     document.getElementById('modalConfirmIcon').innerText = icono || "⚠️";
     document.getElementById('modalConfirmTitle').innerText = titulo;
@@ -1057,13 +1064,10 @@ window.cerrarModalConfirmacion = function() {
 };
 
 document.getElementById('btnConfirmAction').addEventListener('click', () => {
-    if (typeof accionConfirmacionPendiente === 'function') {
-        accionConfirmacionPendiente();
-    }
+    if (typeof accionConfirmacionPendiente === 'function') { accionConfirmacionPendiente(); }
     cerrarModalConfirmacion();
 });
 
-// 6. Eliminar fila (El safacón con advertencia)
 document.getElementById('body-ajustes-inventario').addEventListener('click', (e) => {
     const btnEliminar = e.target.closest('.btn-eliminar-fila');
     if (btnEliminar) {
@@ -1090,11 +1094,7 @@ document.getElementById('body-ajustes-inventario').addEventListener('click', (e)
 /* ========================================== */
 
 window.gestionarMenu = async function() {
-    document.getElementById('mainApp').classList.remove('active');
-    document.getElementById('seccion-ajustes-inventario').classList.add('active');
-    
-    const tbody = document.getElementById('body-ajustes-inventario');
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Cargando inventario actual...</td></tr>';
+    mostrarCarga(true, 'Cargando Inventario...');
 
     try {
         const querySnapshot = await getDocs(collection(db, "productos"));
@@ -1103,21 +1103,23 @@ window.gestionarMenu = async function() {
             const data = docSnap.data();
             if (data.nombre) {
                 productosMapCache[data.nombre.trim()] = data;
-                // ESTA ES LA CLAVE: Guardamos el ID real de la base de datos
                 productosMapCache[data.nombre.trim()].idReal = docSnap.id; 
             }
         });
 
         cargarTablaAjustes();
-        inventarioModificado = false; // Al entrar, el inventario está intacto
+        inventarioModificado = false; 
+
+        document.getElementById('mainApp').classList.remove('active');
+        document.getElementById('seccion-ajustes-inventario').classList.add('active');
+        history.pushState({ id: 'seccion-ajustes-inventario' }, '');
     } catch (e) {
         console.error("Error al cargar ajustes:", e);
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error al cargar los datos</td></tr>';
+    } finally {
+        mostrarCarga(false);
     }
 }
 
-
-// Botón Volver con seguro anti-pérdida de datos
 window.cerrarAjustes = function() {
     if (inventarioModificado) {
         solicitarConfirmacion({
@@ -1128,20 +1130,16 @@ window.cerrarAjustes = function() {
             colorBoton: "#EF4444",
             alConfirmar: () => {
                 inventarioModificado = false;
-                document.getElementById('seccion-ajustes-inventario').classList.remove('active');
-                document.getElementById('mainApp').classList.add('active');
+                history.back();
             }
         });
     } else {
-        document.getElementById('seccion-ajustes-inventario').classList.remove('active');
-        document.getElementById('mainApp').classList.add('active');
+        history.back();
     }
 }
 
-// 7. Botón Guardar Cambios (FASE 3: Conexión Total con Firebase - EN VIVO)
 document.getElementById('btn-guardar-ajustes').addEventListener('click', async () => {
     const btnGuardar = document.getElementById('btn-guardar-ajustes');
-    
     btnGuardar.disabled = true;
     btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando cambios...';
 
@@ -1151,7 +1149,6 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
         let cambiosLog = []; 
         let productosActuales = []; 
 
-        // 1. Recorremos la tabla
         for (let fila of filas) {
             if (fila.classList.contains('fila-categoria-ajuste')) {
                 nuevoOrden.push(fila.innerText.trim());
@@ -1166,11 +1163,9 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
                 const dataCache = productosMapCache[nombre];
                 
                 if (!dataCache) {
-                    // PRODUCTO NUEVO: Dejamos que Firebase le asigne un ID seguro automáticamente
                     await addDoc(collection(db, "productos"), { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta });
                     cambiosLog.push(`añadió "${nombre}"`);
                 } else if (dataCache.precioCompra !== pCompra || dataCache.precioVenta !== pVenta) {
-                    // ACTUALIZAR PRODUCTO: Usamos su ID real guardado en memoria
                     const productoRef = doc(db, "productos", dataCache.idReal);
                     await setDoc(productoRef, { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta }, { merge: true });
                     cambiosLog.push(`actualizó precios de "${nombre}"`);
@@ -1178,7 +1173,6 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
             }
         }
 
-        // 2. Detectamos eliminados usando el ID real
         for (let nombreEnCache in productosMapCache) {
             if (!productosActuales.includes(nombreEnCache)) {
                 const idRealEliminar = productosMapCache[nombreEnCache].idReal;
@@ -1189,24 +1183,17 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
             }
         }
 
-        // 3. Guardamos NUEVO ORDEN
         const ordenRef = doc(db, "configuracion", "orden_inventario");
         await setDoc(ordenRef, { orden: nuevoOrden });
 
-        // 4. Notificación
         if (cambiosLog.length > 0) {
             const mensajeResumen = `${currentUserName} ${cambiosLog.join(', ')}.`;
-            
             await addDoc(collection(db, "notificaciones"), {
-                leido: false,
-                msg: mensajeResumen,
-                time: serverTimestamp(),
-                usuario: currentUserName,
-                tipo: "ajuste_inventario"
+                leido: false, msg: mensajeResumen, time: serverTimestamp(),
+                usuario: currentUserName, tipo: "ajuste_inventario"
             });
         }
 
-        // 5. Mostrar cartel de ÉXITO
         inventarioModificado = false;
         btnGuardar.disabled = false;
         btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar todos los cambios';
@@ -1216,37 +1203,25 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
         document.getElementById('modalMessage').innerText = "El inventario fue actualizado. Los datos ya están sincronizados.";
 
         const btnAceptarModal = document.querySelector('#customModal .btn-primary');
-        // AQUÍ ESTÁ EL FIX DEL REDIRECCIONAMIENTO
         btnAceptarModal.onclick = function() {
-            // 1. Ocultamos el cartel de éxito
             document.getElementById('customModal').style.display = 'none';
-            
-            // 2. Actualizamos la memoria y apagamos la alerta de cambios pendientes
             ORDEN_MAESTRO = nuevoOrden;
             inventarioModificado = false; 
-            
-            // 3. ¡SALTO DIRECTO AL MENÚ PRINCIPAL!
-            // Escondemos la pantalla de ajustes
-            document.getElementById('seccion-ajustes-inventario').classList.remove('active');
-            // Mostramos la pantalla principal del menú
-            document.getElementById('mainApp').classList.add('active');
+            history.back(); // FIX: Salto limpio al menú a través del historial
         };
         document.getElementById('customModal').style.display = 'flex';
 
     } catch (error) {
-        console.error("Error al guardar en Firebase:", error);
-        
         document.getElementById('modalIcon').innerText = "⚠";
         document.getElementById('modalTitle').innerText = "Error al Guardar";
         document.getElementById('modalMessage').innerText = "Hubo un problema. Revisa tu internet y vuelve a intentarlo.";
         
         const btnAceptarModal = document.querySelector('#customModal .btn-primary');
-        btnAceptarModal.onclick = function() {
-            document.getElementById('customModal').style.display = 'none';
-        };
+        btnAceptarModal.onclick = function() { document.getElementById('customModal').style.display = 'none'; };
         document.getElementById('customModal').style.display = 'flex';
 
         btnGuardar.disabled = false;
         btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar todos los cambios';
     }
 });
+
