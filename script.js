@@ -25,10 +25,8 @@ let currentUserName = '';
 /* SISTEMA DE NAVEGACIÓN NATIVA Y CARGA       */
 /* ========================================== */
 
-// 1. Iniciamos el historial de navegación en la pantalla 1
 history.replaceState({ id: 'roleSelection' }, ''); 
 
-// 2. Pantalla de carga global (Evita que la pantalla se vea vacía mientras carga)
 window.mostrarCarga = function(mostrar, texto = 'Cargando...') {
     let loader = document.getElementById('globalLoader');
     if (!loader) {
@@ -49,14 +47,12 @@ window.mostrarCarga = function(mostrar, texto = 'Cargando...') {
     }
 };
 
-// 3. El cerebro del Botón de Retroceso del Teléfono
 window.addEventListener('popstate', (event) => {
     const targetId = (event.state && event.state.id) ? event.state.id : 'roleSelection';
     
-    // Si intentas dar atrás y estás en Ajustes con cambios sin guardar
     const currentActive = document.querySelector('.screen.active');
     if (currentActive && currentActive.id === 'seccion-ajustes-inventario' && inventarioModificado) {
-        history.pushState({ id: 'seccion-ajustes-inventario' }, ''); // Te mantiene en la pantalla
+        history.pushState({ id: 'seccion-ajustes-inventario' }, ''); 
         solicitarConfirmacion({
             icono: "⚠️",
             titulo: "Cambios sin guardar",
@@ -65,20 +61,18 @@ window.addEventListener('popstate', (event) => {
             colorBoton: "#EF4444",
             alConfirmar: () => {
                 inventarioModificado = false;
-                history.back(); // Ahora sí retrocede
+                history.back(); 
             }
         });
         return;
     }
 
-    // Si retrocedes a la pantalla principal de usuarios, cierra sesión por seguridad
     if (targetId === 'roleSelection') {
         currentUser = '';
         currentUserName = '';
         clearMessage();
     }
 
-    // Cambia la pantalla visualmente de forma limpia
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(targetId).classList.add('active');
 });
@@ -116,16 +110,15 @@ function selectUser(userId, userName) {
     document.getElementById('userNameDisplay').textContent = '¡Hola, ' + userName + '!';
     document.getElementById('roleSelection').classList.remove('active');
     document.getElementById('authSection').classList.add('active');
-    history.pushState({ id: 'authSection' }, ''); // Registra el movimiento
+    history.pushState({ id: 'authSection' }, ''); 
 }
 
-// Botones de "Volver" ahora usan el historial nativo
 function goBack() {
     history.back();
 }
 
 function logout() {
-    window.location.reload(); // Forma más limpia y segura de cerrar sesión
+    window.location.reload(); 
 }
 
 async function verifyPin() {
@@ -155,7 +148,9 @@ async function verifyPin() {
 
                 document.getElementById('authSection').classList.remove('active');
                 document.getElementById('mainApp').classList.add('active');
-                history.replaceState({ id: 'mainApp' }, ''); // Reemplaza la pantalla de PIN para no poder volver a ella sin contraseña
+                
+                // CORRECCIÓN: Usamos pushState para que puedas dar atrás hacia el PIN (3 -> 2 -> 1)
+                history.pushState({ id: 'mainApp' }, ''); 
                 
                 configurarPantallaPrincipal(currentUser, currentUserName);
                 verificarNotificacionesPendientes();
@@ -297,7 +292,6 @@ window.iniciarCuadre = async function() {
             }
         });
 
-        // Hacemos el salto de pantalla LUEGO de que la tabla esté armada
         document.getElementById('mainApp').classList.remove('active');
         document.getElementById('cuadreSection').classList.add('active');
         history.pushState({ id: 'cuadreSection' }, '');
@@ -826,6 +820,15 @@ window.verDetalleCuadre = async function(id) {
                 html += `<li style="margin-top:4px;">Ganancia neta: ${gananciaNeta} CUP, este monto representa el ${porcentajeVenta}% de la venta.</li>`;
             }
             html += `</ul>`;
+            
+            // EL BOTÓN DE ELIMINAR CUADRE (Solo visible para administradoras)
+            if (!esYoandri) {
+                html += `<div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #cbd5e1;">
+                            <button onclick="eliminarCuadre('${id}')" style="background-color: #EF4444; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; gap: 8px; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);">
+                                🗑️ Eliminar este Cuadre del Historial
+                            </button>
+                         </div>`;
+            }
 
             html += `</div>`;
 
@@ -840,6 +843,30 @@ window.verDetalleCuadre = async function(id) {
     } finally {
         mostrarCarga(false);
     }
+}
+
+// FUNCIÓN PARA ELIMINAR EL CUADRE CON DOBLE CONFIRMACIÓN
+window.eliminarCuadre = function(id) {
+    solicitarConfirmacion({
+        icono: "🗑️",
+        titulo: "Eliminar Cuadre",
+        mensaje: "¿Estás segura de que deseas eliminar este cuadre? Esta acción borrará el registro para siempre y no se puede deshacer.",
+        textoBoton: "Sí, Eliminar",
+        colorBoton: "#EF4444",
+        alConfirmar: async () => {
+            try {
+                mostrarCarga(true, "Eliminando registro...");
+                await deleteDoc(doc(db, "historial_cuadres", id));
+                mostrarCarga(false);
+                // Una vez eliminado, regresamos al historial general para que se actualice
+                history.back();
+                setTimeout(() => { verHistorial(); }, 100); 
+            } catch (e) {
+                mostrarCarga(false);
+                alert("Hubo un error al intentar eliminar el cuadre. Revisa tu conexión.");
+            }
+        }
+    });
 }
 
 window.cancelarCuadre = function() {
@@ -1207,7 +1234,7 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
             document.getElementById('customModal').style.display = 'none';
             ORDEN_MAESTRO = nuevoOrden;
             inventarioModificado = false; 
-            history.back(); // FIX: Salto limpio al menú a través del historial
+            history.back(); 
         };
         document.getElementById('customModal').style.display = 'flex';
 
