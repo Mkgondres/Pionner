@@ -923,10 +923,11 @@ function cargarTablaAjustes() {
             tr.className = 'fila-producto-ajuste';
             
             // --- CONEXIÓN CON TUS DATOS ---
-            // Aquí debes sustituir estos ceros por los valores reales que vienen de tu base de datos
-            // Por ejemplo: inventarioActual[item].precioCompra
-            let precioCompraActual = 0; 
-            let precioVentaActual = 0;  
+                        // Extraer los precios reales del caché de Firebase
+            let prodData = productosMapCache[item] || {};
+            let precioCompraActual = prodData.precioCompra || 0; 
+            let precioVentaActual = prodData.precioVenta || 0;  
+
 
             tr.innerHTML = `
                 <td class="col-drag"><i class="fas fa-bars drag-handle"></i></td>
@@ -1010,3 +1011,36 @@ document.getElementById('body-ajustes-inventario').addEventListener('click', (e)
         }
     }
 });
+/* ========================================== */
+/* ABRIR Y CERRAR PANTALLA DE AJUSTES         */
+/* ========================================== */
+
+window.gestionarMenu = async function() {
+    // 1. Cambiamos de pantalla
+    document.getElementById('mainApp').classList.remove('active');
+    document.getElementById('seccion-ajustes-inventario').classList.add('active');
+    
+    const tbody = document.getElementById('body-ajustes-inventario');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Cargando inventario actual...</td></tr>';
+
+    try {
+        // 2. Descargamos los datos actualizados de Firebase para ver los precios reales
+        const querySnapshot = await getDocs(collection(db, "productos"));
+        productosMapCache = {};
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.nombre) productosMapCache[data.nombre.trim()] = data;
+        });
+
+        // 3. Pintamos la tabla
+        cargarTablaAjustes();
+    } catch (e) {
+        console.error("Error al cargar ajustes:", e);
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error al cargar los datos</td></tr>';
+    }
+}
+
+window.cerrarAjustes = function() {
+    document.getElementById('seccion-ajustes-inventario').classList.remove('active');
+    document.getElementById('mainApp').classList.add('active');
+}
