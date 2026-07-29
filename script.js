@@ -20,6 +20,7 @@ enableIndexedDbPersistence(db).catch(() => {});
 
 let currentUser = '';
 let currentUserName = '';
+let notificacionesCache = {}; // <-- NUEVO: Para guardar los detalles de la notificación en memoria temporal
 
 /* ========================================== */
 /* SISTEMA DE NAVEGACIÓN NATIVA Y CARGA       */
@@ -502,6 +503,7 @@ window.verificarNotificacionesPendientes = async function() {
     } catch(e) {}
 }
 
+/* MODIFICACIÓN 1: Cargar notificaciones usando caché para no romper el HTML visual */
 window.verNotificaciones = async function() {
     const modal = document.getElementById('modalNotificaciones');
     const container = document.getElementById('listaNotificacionesContainer');
@@ -512,14 +514,16 @@ window.verNotificaciones = async function() {
         const q = query(collection(db, "notificaciones"), where("leido", "==", false));
         const snap = await getDocs(q);
         let html = '';
+        notificacionesCache = {}; 
         
-                snap.forEach(docSnap => {
+        snap.forEach(docSnap => {
             const n = docSnap.data();
+            notificacionesCache[docSnap.id] = n; 
             const textoNotif = n.msg || "Nueva notificación"; 
             
-            html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}', '${n.cuadreId}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer;">
+            html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer;">
                 <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 ${textoNotif}</p>
-                <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver o marcar como leída</span>
+                <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver detalles</span>
             </div>`;
         });
 
@@ -529,17 +533,44 @@ window.verNotificaciones = async function() {
     }
 }
 
-window.abrirAtajoNotificacion = async function(notifId, cuadreId) {
+/* MODIFICACIÓN 2: Lógica inteligente del clic en la notificación (Detalle de Cuadre vs Ventana Emergente de Única Vista) */
+window.abrirAtajoNotificacion = async function(notifId) {
     try {
         mostrarCarga(true, "Abriendo Notificación...");
+        const n = notificacionesCache[notifId]; 
+        
+        // La marcamos como leída eliminándola inmediatamente de Firebase
         await deleteDoc(doc(db, "notificaciones", notifId));
         document.getElementById('modalNotificaciones').style.display = 'none';
         verificarNotificacionesPendientes();
         
-        if (cuadreId && cuadreId !== 'undefined' && cuadreId !== 'null') {
-            verDetalleCuadre(cuadreId);
+        if (n && n.cuadreId && n.cuadreId !== 'undefined' && n.cuadreId !== 'null') {
+            // Es un cuadre: vamos al detalle
+            verDetalleCuadre(n.cuadreId);
+        } else if (n && n.tipo === 'ajuste_inventario') {
+            mostrarCarga(false); // Quitamos la carga porque no nos movemos de pantalla
+            
+            // Construimos la lista visual con lo que cambió
+            let htmlDetalles = "";
+            if (n.detalles && n.detalles.length > 0) {
+                htmlDetalles = n.detalles.join('<br><br>');
+            } else {
+                htmlDetalles = "Se realizaron ajustes internos que no afectan el precio de venta.";
+            }
+
+            // Usamos tu modal genérico para el cartel emergente de vista única
+            document.getElementById('modalIcon').innerText = "📋";
+            document.getElementById('modalTitle').innerText = "Detalle de Ajustes";
+            document.getElementById('modalMessage').innerHTML = `<div style="text-align:left; font-size:14px; margin-top:10px; padding:12px; background:#f8fafc; border-radius:6px; color:#0f172a; border: 1px solid #cbd5e1; max-height: 300px; overflow-y: auto;">${htmlDetalles}</div>`;
+            
+            const btnAceptarModal = document.querySelector('#customModal .btn-primary');
+            btnAceptarModal.onclick = function() {
+                document.getElementById('customModal').style.display = 'none';
+                // Al darle a "Entendido", se cierra y como ya se borró de la DB, desaparece para siempre.
+            };
+            document.getElementById('customModal').style.display = 'flex';
         } else {
-            verHistorial(); 
+            mostrarCarga(false);
         }
     } catch(e) {
         alert("Error al procesar el atajo.");
@@ -1161,6 +1192,7 @@ window.cerrarAjustes = function() {
     }
 }
 
+/* MODIFICACIÓN 3: Lógica inteligente de generar los reportes de ajustes para el cartel emergente */
 document.getElementById('btn-guardar-ajustes').addEventListener('click', async () => {
     const btnGuardar = document.getElementById('btn-guardar-ajustes');
     btnGuardar.disabled = true;
@@ -1169,7 +1201,7 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
     try {
         const filas = document.querySelectorAll('#body-ajustes-inventario tr');
         let nuevoOrden = [];
-        let cambiosLog = []; 
+        let detallesAjuste = []; // <- Array que armará la lista visual de cambios
         let productosActuales = []; 
 
         for (let fila of filas) {
@@ -1186,17 +1218,18 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
                 const dataCache = productosMapCache[nombre];
                 
                 if (!dataCache) {
+                    // Producto nuevo
                     await addDoc(collection(db, "productos"), { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta });
-                    cambiosLog.push(`añadió "${nombre}"`);
+                    detallesAjuste.push(`➕ <b>Añadido:</b> "${nombre}" a $${pVenta}`);
                 } else if (dataCache.precioCompra !== pCompra || dataCache.precioVenta !== pVenta) {
                     
-                    // Aquí se guarda el precio de compra internamente en Firebase
+                    // Modificamos base de datos
                     const productoRef = doc(db, "productos", dataCache.idReal);
                     await setDoc(productoRef, { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta }, { merge: true });
                     
-                    // LA REGLA DE PRIVACIDAD: Solo notificamos si varió el precio de venta
+                    // Solo revelamos en el detalle visual si el precio de VENTA cambió
                     if (dataCache.precioVenta !== pVenta) {
-                        cambiosLog.push(`actualizó el precio de "${nombre}"`);
+                        detallesAjuste.push(`🔄 <b>Modificado:</b> "${nombre}" pasó de $${dataCache.precioVenta || 0} a $${pVenta}`);
                     }
                 }
             }
@@ -1204,22 +1237,27 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
 
         for (let nombreEnCache in productosMapCache) {
             if (!productosActuales.includes(nombreEnCache)) {
+                // Producto eliminado
                 const idRealEliminar = productosMapCache[nombreEnCache].idReal;
                 if (idRealEliminar) {
                     await deleteDoc(doc(db, "productos", idRealEliminar));
                 }
-                cambiosLog.push(`eliminó "${nombreEnCache}"`);
+                detallesAjuste.push(`🗑️ <b>Eliminado:</b> "${nombreEnCache}"`);
             }
         }
 
         const ordenRef = doc(db, "configuracion", "orden_inventario");
         await setDoc(ordenRef, { orden: nuevoOrden });
 
-        if (cambiosLog.length > 0) {
-            const mensajeResumen = `${currentUserName} ${cambiosLog.join(', ')}.`;
+        // Guardamos la notificación con todo el detalle inyectado si hubo cambios reportables
+        if (detallesAjuste.length > 0) {
             await addDoc(collection(db, "notificaciones"), {
-                leido: false, msg: mensajeResumen, time: serverTimestamp(),
-                usuario: currentUserName, tipo: "ajuste_inventario"
+                leido: false, 
+                msg: `${currentUserName} realizó cambios en el inventario.`, 
+                detalles: detallesAjuste, // Aquí pasamos el arreglo completo
+                time: serverTimestamp(),
+                usuario: currentUserName, 
+                tipo: "ajuste_inventario"
             });
         }
 
@@ -1253,4 +1291,3 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
         btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar todos los cambios';
     }
 });
-
