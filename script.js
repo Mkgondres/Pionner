@@ -1128,8 +1128,6 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
     btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando cambios...';
 
     try {
-        const { setDoc, deleteDoc, doc, collection, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js");
-        
         const filas = document.querySelectorAll('#body-ajustes-inventario tr');
         let nuevoOrden = [];
         let cambiosLog = []; 
@@ -1230,10 +1228,9 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
     } catch (error) {
         console.error("Error al guardar en Firebase:", error);
         
-        // Usamos tu modal personalizado para el error también (sin alerts nativos)
         document.getElementById('modalIcon').innerText = "⚠";
         document.getElementById('modalTitle').innerText = "Error al Guardar";
-        document.getElementById('modalMessage').innerText = "Hubo un problema de conexión. Revisa tu internet y vuelve a intentarlo.";
+        document.getElementById('modalMessage').innerText = "Hubo un problema. Revisa tu internet y vuelve a intentarlo.";
         
         const btnAceptarModal = document.querySelector('#customModal .btn-primary');
         btnAceptarModal.onclick = function() {
