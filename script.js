@@ -931,16 +931,29 @@ document.getElementById('body-ajustes-inventario').addEventListener('input', (e)
     }
 });
 
+// Variable para guardar el motor de arrastre y evitar duplicados (EL FIX DEL ARRASTRE)
+let motorArrastre = null;
+
 // 2. Función para activar SortableJS (Arrastrar y soltar)
 function activarDragAndDrop() {
     const tbody = document.getElementById('body-ajustes-inventario');
-    new Sortable(tbody, {
+    
+    // Si ya existe un motor funcionando de una visita anterior, lo destruimos.
+    if (motorArrastre !== null) {
+        motorArrastre.destroy();
+    }
+
+    // Creamos un motor limpio
+    motorArrastre = new Sortable(tbody, {
         handle: '.drag-handle', 
         animation: 150,         
         filter: '.no-drag',     
         ghostClass: 'sortable-ghost', 
+        forceFallback: true,    // Obliga a usar el motor propio
+        fallbackOnBody: true,   // Evita que los márgenes corten el arrastre
+        swapThreshold: 0.65,    // Hace que "encaje" mejor
         onEnd: function () {
-            marcarCambios(); // Si arrastran un producto, registramos el cambio
+            marcarCambios(); 
         }
     });
 }
@@ -1203,14 +1216,20 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
         document.getElementById('modalMessage').innerText = "El inventario fue actualizado. Los datos ya están sincronizados.";
 
         const btnAceptarModal = document.querySelector('#customModal .btn-primary');
+        // AQUÍ ESTÁ EL FIX DEL REDIRECCIONAMIENTO
         btnAceptarModal.onclick = function() {
+            // 1. Ocultamos el cartel de éxito
             document.getElementById('customModal').style.display = 'none';
             
-            // --- ACTUALIZACIÓN EN VIVO (Sin salir de la app) ---
+            // 2. Actualizamos la memoria y apagamos la alerta de cambios pendientes
             ORDEN_MAESTRO = nuevoOrden;
+            inventarioModificado = false; 
             
-            // Forzamos una recarga limpia e invisible para atrapar los IDs de los productos nuevos
-            gestionarMenu();
+            // 3. ¡SALTO DIRECTO AL MENÚ PRINCIPAL!
+            // Escondemos la pantalla de ajustes
+            document.getElementById('seccion-ajustes-inventario').classList.remove('active');
+            // Mostramos la pantalla principal del menú
+            document.getElementById('mainApp').classList.add('active');
         };
         document.getElementById('customModal').style.display = 'flex';
 
