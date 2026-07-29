@@ -904,30 +904,53 @@ window.descargarIPBLimpio = function() {
 /* LÓGICA: AJUSTES DE INVENTARIO              */
 /* ========================================== */
 
-// 1. Función principal para pintar la tabla con el ORDEN_MAESTRO
+let inventarioModificado = false;
+let accionConfirmacionPendiente = null;
+
+// 1. Detectar cambios al escribir precios
+function marcarCambios() {
+    inventarioModificado = true;
+}
+
+document.getElementById('body-ajustes-inventario').addEventListener('input', (e) => {
+    if(e.target.classList.contains('input-ajuste-precio')) {
+        marcarCambios();
+    }
+});
+
+// 2. Función para activar SortableJS (Arrastrar y soltar)
+function activarDragAndDrop() {
+    const tbody = document.getElementById('body-ajustes-inventario');
+    new Sortable(tbody, {
+        handle: '.drag-handle', 
+        animation: 150,         
+        filter: '.no-drag',     
+        ghostClass: 'sortable-ghost', 
+        onEnd: function () {
+            marcarCambios(); // Si arrastran un producto, registramos el cambio
+        }
+    });
+}
+
+// 3. Función principal para pintar la tabla con el ORDEN_MAESTRO y Firebase
 function cargarTablaAjustes() {
     const tbody = document.getElementById('body-ajustes-inventario');
     tbody.innerHTML = '';
 
-    // NOTA: Aquí asumimos que tienes acceso a tu array ORDEN_MAESTRO 
-    // y a los datos de Firebase (ej: inventarioActual) para sacar los precios.
     ORDEN_MAESTRO.forEach(item => {
         const tr = document.createElement('tr');
 
         if (item.startsWith('***')) {
-            // Es una fila de Categoría (Ej: *** SNACKS ***)
-            tr.className = 'fila-categoria-ajuste no-drag'; // 'no-drag' evita que se pueda arrastrar la categoría
+            // Fila de Categoría
+            tr.className = 'fila-categoria-ajuste no-drag'; 
             tr.innerHTML = `<td colspan="5">${item}</td>`;
         } else {
-            // Es un Producto normal
+            // Producto normal extrayendo precios del caché de Firebase
             tr.className = 'fila-producto-ajuste';
             
-            // --- CONEXIÓN CON TUS DATOS ---
-                        // Extraer los precios reales del caché de Firebase
             let prodData = productosMapCache[item] || {};
             let precioCompraActual = prodData.precioCompra || 0; 
             let precioVentaActual = prodData.precioVenta || 0;  
-
 
             tr.innerHTML = `
                 <td class="col-drag"><i class="fas fa-bars drag-handle"></i></td>
@@ -949,27 +972,18 @@ function cargarTablaAjustes() {
         tbody.appendChild(tr);
     });
 
-    // Activar el Arrastrar y Soltar después de pintar la tabla
     activarDragAndDrop();
 }
 
-// 2. Función para activar SortableJS (Arrastrar y soltar)
-function activarDragAndDrop() {
-    const tbody = document.getElementById('body-ajustes-inventario');
-    new Sortable(tbody, {
-        handle: '.drag-handle', // Solo permite arrastrar si tocan el icono de las rayitas
-        animation: 150,         // Animación suave
-        filter: '.no-drag',     // No permite arrastrar las filas de categoría
-        ghostClass: 'sortable-ghost', // Clase CSS que se aplica mientras arrastras (opcional)
-    });
-}
-
-// 3. Lógica para el botón "+ Añadir Producto"
+// 4. Lógica para el botón "+ Añadir Producto" (Con Modal)
 document.getElementById('btn-add-producto').addEventListener('click', () => {
-    const nombreProducto = prompt("Ingresa el nombre del nuevo producto (Ej: Refresco Lata):");
-    
-    // Si el usuario cancela o deja vacío, no hacemos nada
-    if (!nombreProducto || nombreProducto.trim() === '') return; 
+    document.getElementById('inputNuevoProducto').value = '';
+    document.getElementById('modalAddProducto').style.display = 'flex';
+});
+
+window.confirmarAddProducto = function() {
+    const nombreProducto = document.getElementById('inputNuevoProducto').value.trim();
+    if (!nombreProducto) return; 
 
     const tbody = document.getElementById('body-ajustes-inventario');
     const tr = document.createElement('tr');
@@ -992,31 +1006,64 @@ document.getElementById('btn-add-producto').addEventListener('click', () => {
         </td>
     `;
     
-    // Inserta el producto nuevo justo arriba del todo (luego tú lo arrastras a su categoría)
     tbody.insertBefore(tr, tbody.firstChild);
+    document.getElementById('modalAddProducto').style.display = 'none';
+    marcarCambios();
+}
+
+// 5. Sistema Genérico de Confirmaciones (Estilo Glassmorphism)
+function solicitarConfirmacion({ icono, titulo, mensaje, textoBoton, colorBoton, alConfirmar }) {
+    document.getElementById('modalConfirmIcon').innerText = icono || "⚠️";
+    document.getElementById('modalConfirmTitle').innerText = titulo;
+    document.getElementById('modalConfirmMessage').innerText = mensaje;
+    
+    const btnAccion = document.getElementById('btnConfirmAction');
+    btnAccion.innerText = textoBoton;
+    btnAccion.style.backgroundColor = colorBoton || "#EF4444";
+    
+    accionConfirmacionPendiente = alConfirmar;
+    document.getElementById('modalConfirmacionGenerico').style.display = 'flex';
+}
+
+window.cerrarModalConfirmacion = function() {
+    document.getElementById('modalConfirmacionGenerico').style.display = 'none';
+    accionConfirmacionPendiente = null;
+};
+
+document.getElementById('btnConfirmAction').addEventListener('click', () => {
+    if (typeof accionConfirmacionPendiente === 'function') {
+        accionConfirmacionPendiente();
+    }
+    cerrarModalConfirmacion();
 });
 
-// 4. Lógica para el botón del safacón (Eliminar fila)
+// 6. Eliminar fila (El safacón con advertencia)
 document.getElementById('body-ajustes-inventario').addEventListener('click', (e) => {
-    // Detectamos si tocaron el botón de eliminar o el icono del basurero
     const btnEliminar = e.target.closest('.btn-eliminar-fila');
     if (btnEliminar) {
         const fila = btnEliminar.closest('tr');
-        const nombreProducto = fila.querySelector('.input-nombre').value;
+        const inputNombre = fila.querySelector('.input-nombre');
+        const nombreProducto = inputNombre ? inputNombre.value : "este producto";
         
-        // Mensaje de confirmación
-        const confirmar = confirm(`¿Seguro que deseas quitar "${nombreProducto}" de la lista?`);
-        if (confirmar) {
-            fila.remove(); // Borramos la fila de la pantalla
-        }
+        solicitarConfirmacion({
+            icono: "🗑️",
+            titulo: "Eliminar Producto",
+            mensaje: `¿Estás seguro de que deseas eliminar "${nombreProducto}" del inventario?`,
+            textoBoton: "Eliminar",
+            colorBoton: "#EF4444",
+            alConfirmar: () => {
+                fila.remove();
+                marcarCambios();
+            }
+        });
     }
 });
+
 /* ========================================== */
-/* ABRIR Y CERRAR PANTALLA DE AJUSTES         */
+/* ABRIR, CERRAR Y GUARDAR PANTALLA DE AJUSTES */
 /* ========================================== */
 
 window.gestionarMenu = async function() {
-    // 1. Cambiamos de pantalla
     document.getElementById('mainApp').classList.remove('active');
     document.getElementById('seccion-ajustes-inventario').classList.add('active');
     
@@ -1024,7 +1071,6 @@ window.gestionarMenu = async function() {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Cargando inventario actual...</td></tr>';
 
     try {
-        // 2. Descargamos los datos actualizados de Firebase para ver los precios reales
         const querySnapshot = await getDocs(collection(db, "productos"));
         productosMapCache = {};
         querySnapshot.forEach((docSnap) => {
@@ -1032,15 +1078,57 @@ window.gestionarMenu = async function() {
             if (data.nombre) productosMapCache[data.nombre.trim()] = data;
         });
 
-        // 3. Pintamos la tabla
         cargarTablaAjustes();
+        inventarioModificado = false; // Al entrar, el inventario está intacto
     } catch (e) {
         console.error("Error al cargar ajustes:", e);
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error al cargar los datos</td></tr>';
     }
 }
 
+// Botón Volver con seguro anti-pérdida de datos
 window.cerrarAjustes = function() {
-    document.getElementById('seccion-ajustes-inventario').classList.remove('active');
-    document.getElementById('mainApp').classList.add('active');
+    if (inventarioModificado) {
+        solicitarConfirmacion({
+            icono: "⚠️",
+            titulo: "Cambios sin guardar",
+            mensaje: "Tienes ajustes pendientes. Si sales ahora, se perderán todos los cambios.",
+            textoBoton: "Descartar",
+            colorBoton: "#EF4444",
+            alConfirmar: () => {
+                inventarioModificado = false;
+                document.getElementById('seccion-ajustes-inventario').classList.remove('active');
+                document.getElementById('mainApp').classList.add('active');
+            }
+        });
+    } else {
+        document.getElementById('seccion-ajustes-inventario').classList.remove('active');
+        document.getElementById('mainApp').classList.add('active');
+    }
 }
+
+// Botón "Guardar todos los cambios"
+document.getElementById('btn-guardar-ajustes').addEventListener('click', () => {
+    // [Fase 3: Aquí pondremos la conexión con Firebase próximamente]
+    
+    inventarioModificado = false;
+
+    // Cartel estético de éxito
+    document.getElementById('modalIcon').innerText = "✓";
+    document.getElementById('modalTitle').innerText = "¡Guardado Exitoso!";
+    document.getElementById('modalMessage').innerText = "Los cambios en el inventario se han actualizado correctamente.";
+
+    const btnAceptarModal = document.querySelector('#customModal .btn-primary');
+    
+    // Sobrescribir temporalmente la función para que redirija al menú
+    btnAceptarModal.onclick = function() {
+        document.getElementById('customModal').style.display = 'none';
+        document.getElementById('seccion-ajustes-inventario').classList.remove('active');
+        document.getElementById('mainApp').classList.add('active');
+        
+        // Devolver la función original al botón
+        btnAceptarModal.setAttribute('onclick', 'cerrarModalCustom()');
+    };
+
+    document.getElementById('customModal').style.display = 'flex';
+});
