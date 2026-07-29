@@ -1151,22 +1151,27 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
                 productosActuales.push(nombre);
 
                 const dataCache = productosMapCache[nombre];
-                const productoRef = doc(db, "productos", nombre); 
                 
                 if (!dataCache) {
-                    await setDoc(productoRef, { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta });
+                    // PRODUCTO NUEVO: Dejamos que Firebase le asigne un ID seguro automáticamente
+                    await addDoc(collection(db, "productos"), { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta });
                     cambiosLog.push(`añadió "${nombre}"`);
                 } else if (dataCache.precioCompra !== pCompra || dataCache.precioVenta !== pVenta) {
+                    // ACTUALIZAR PRODUCTO: Usamos su ID real guardado en memoria
+                    const productoRef = doc(db, "productos", dataCache.idReal);
                     await setDoc(productoRef, { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta }, { merge: true });
                     cambiosLog.push(`actualizó precios de "${nombre}"`);
                 }
             }
         }
 
-        // 2. Detectamos eliminados
+        // 2. Detectamos eliminados usando el ID real
         for (let nombreEnCache in productosMapCache) {
             if (!productosActuales.includes(nombreEnCache)) {
-                await deleteDoc(doc(db, "productos", nombreEnCache));
+                const idRealEliminar = productosMapCache[nombreEnCache].idReal;
+                if (idRealEliminar) {
+                    await deleteDoc(doc(db, "productos", idRealEliminar));
+                }
                 cambiosLog.push(`eliminó "${nombreEnCache}"`);
             }
         }
@@ -1199,34 +1204,13 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
 
         const btnAceptarModal = document.querySelector('#customModal .btn-primary');
         btnAceptarModal.onclick = function() {
-            
-            // --- ACTUALIZACIÓN EN VIVO (Sin salir de la app) ---
             document.getElementById('customModal').style.display = 'none';
             
-            // Reemplazamos el orden viejo por el nuevo en la memoria
+            // --- ACTUALIZACIÓN EN VIVO (Sin salir de la app) ---
             ORDEN_MAESTRO = nuevoOrden;
-
-            // Limpiamos los productos eliminados de la memoria temporal
-            for (let nombreEnCache in productosMapCache) {
-                if (!productosActuales.includes(nombreEnCache)) {
-                    delete productosMapCache[nombreEnCache]; 
-                }
-            }
-
-            // Actualizamos la memoria con los precios nuevos o productos añadidos
-            const filasParaCache = document.querySelectorAll('#body-ajustes-inventario tr.fila-producto-ajuste');
-            for (let fila of filasParaCache) {
-                const nombre = fila.querySelector('.input-nombre').value.trim();
-                const pCompra = parseFloat(fila.querySelector('.input-compra').value) || 0;
-                const pVenta = parseFloat(fila.querySelector('.input-venta').value) || 0;
-                
-                productosMapCache[nombre] = {
-                    nombre: nombre,
-                    precioCompra: pCompra,
-                    precioVenta: pVenta
-                };
-            }
-            // ----------------------------------------------------
+            
+            // Forzamos una recarga limpia e invisible para atrapar los IDs de los productos nuevos
+            gestionarMenu();
         };
         document.getElementById('customModal').style.display = 'flex';
 
