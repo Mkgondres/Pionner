@@ -137,9 +137,12 @@ async function verifyPin() {
         const docRef = doc(db, "usuarios", currentUser);
         const docSnap = await getDoc(docRef);
 
-        if (docSnap.exists()) {
-            if (pinIngresado === docSnap.data().pin) {
+                if (docSnap.exists()) {
+            // Convertimos el texto del input a número para que coincida con Firebase
+            if (Number(pinIngresado) === docSnap.data().pin) {
                 
+                try {
+
                 try {
                     const ordenSnap = await getDoc(doc(db, "configuracion", "orden_inventario"));
                     if (ordenSnap.exists() && ordenSnap.data().orden) {
