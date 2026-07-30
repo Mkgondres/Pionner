@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { 
     getFirestore, doc, getDoc, getDocs, collection, addDoc, 
-    serverTimestamp, query, where, enableIndexedDbPersistence, deleteDoc, orderBy, limit, setDoc
+    serverTimestamp, query, where, enableIndexedDbPersistence, deleteDoc, orderBy, limit, setDoc, updateDoc, arrayUnion
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -20,7 +20,7 @@ enableIndexedDbPersistence(db).catch(() => {});
 
 let currentUser = '';
 let currentUserName = '';
-let notificacionesCache = {}; // <-- NUEVO: Para guardar los detalles de la notificación en memoria temporal
+let notificacionesCache = {};
 
 /* ========================================== */
 /* SISTEMA DE NAVEGACIÓN NATIVA Y CARGA       */
@@ -135,7 +135,6 @@ async function verifyPin() {
     try {
         mostrarCarga(true, 'Iniciando sesión...');
         
-        // Buscamos el documento en Firebase
         const docRef = doc(db, "usuarios", currentUser);
         const docSnap = await getDoc(docRef);
 
@@ -144,7 +143,6 @@ async function verifyPin() {
             const pinUsuario = String(pinIngresado).trim();
 
             if (pinUsuario === pinBaseDatos) {
-                // Entra exitosamente con internet
                 try {
                     const ordenSnap = await getDoc(doc(db, "configuracion", "orden_inventario"));
                     if (ordenSnap.exists() && ordenSnap.data().orden) {
@@ -166,29 +164,17 @@ async function verifyPin() {
                 userPinInput.value = '';
             }
         } else {
-            // El usuario no existe en la base de datos
             mostrarCarga(false);
             showMessage('Usuario no encontrado o PIN incorrecto.', 'error');
         }
     } catch (e) {
-        // Falló el internet: Activamos el MODO OFFLINE
         mostrarCarga(false);
-        
-        // Entramos a la fuerza a la aplicación
         document.getElementById('authSection').classList.remove('active');
         document.getElementById('mainApp').classList.add('active');
-        
-        // Actualizamos el historial para que el botón "Atrás" del celular funcione bien
         history.pushState({ id: 'mainApp' }, ''); 
-        
-        // Configuramos la pantalla con los datos guardados en memoria
         configurarPantallaPrincipal(currentUser, currentUserName);
     }
 }
-
-
-
-
 
 window.configurarPantallaPrincipal = function(userId, userName) {
     document.getElementById('welcomeUserText').innerText = `Usuario activo: ${userName}`;
@@ -206,7 +192,6 @@ window.configurarPantallaPrincipal = function(userId, userName) {
         btnAjustes.style.display = 'block';
     }
 }
-
 
 let ORDEN_MAESTRO = [
     "Tortica", "Pasteles", "Pan Suave", "Sal 1lb", "Sal 1kg",
@@ -228,6 +213,10 @@ window.iniciarCuadre = async function() {
     mostrarCarga(true, 'Preparando Cuadre...');
     const container = document.getElementById('listaProductosContainer');
     const esYoandri = (currentUser === 'yoandri');
+    
+    // Vaciamos la nota al iniciar un nuevo cuadre
+    const notaInput = document.getElementById('notaTurno');
+    if (notaInput) notaInput.value = '';
 
     try {
         const querySnapshot = await getDocs(collection(db, "productos"));
@@ -453,12 +442,14 @@ window.guardarCuadreFinal = async function() {
     const ventaTotalStr = document.getElementById('lblVentaTotal').innerText;
     const totalFinalStr = document.getElementById('lblFinal').innerText;
     const efectivoVal = document.getElementById('efectivoCaja').value || 0;
+    const notaTurnoStr = document.getElementById('notaTurno') ? document.getElementById('notaTurno').value.trim() : ""; // <-- CAPTURAMOS LA NOTA
 
     const datos = {
         usuario: currentUserName,
         turno: nombreTurno,
         fecha: ahora.toLocaleString(),
         timestamp: serverTimestamp(),
+        nota: notaTurnoStr, // <-- GUARDAMOS LA NOTA EN FIREBASE
         productos: detalle,
         financiero: {
             efectivo: efectivoVal,
@@ -491,8 +482,9 @@ window.guardarCuadreFinal = async function() {
 
         const nuevoCuadreRef = await addDoc(collection(db, "historial_cuadres"), datos);
         
+        // Creada con arreglo leidoPor vacío para notificaciones independientes
         await addDoc(collection(db, "notificaciones"), { 
-            leido: false, 
+            leidoPor: [], 
             msg: `Yoandri envió cuadre nuevo (${nombreTurno} - ${ahora.toLocaleDateString()})`, 
             time: serverTimestamp(),
             usuario: currentUserName,
@@ -515,13 +507,21 @@ window.cerrarModalCustom = function() {
 
 window.verificarNotificacionesPendientes = async function() {
     try {
-        const q = query(collection(db, "notificaciones"), where("leido", "==", false));
+        const q = query(collection(db, "notificaciones"));
         const snap = await getDocs(q);
-        document.getElementById('contadorCampanita').innerText = snap.size;
+        let sinLeer = 0;
+        snap.forEach(d => {
+            const data = d.data();
+            const leidoPor = data.leidoPor || [];
+            // Si mi ID no está en la lista de los que la han leído, entonces es nueva para mí
+            if (!leidoPor.includes(currentUser)) {
+                sinLeer++;
+            }
+        });
+        document.getElementById('contadorCampanita').innerText = sinLeer;
     } catch(e) {}
 }
 
-/* MODIFICACIÓN 1: Cargar notificaciones usando caché para no romper el HTML visual */
 window.verNotificaciones = async function() {
     const modal = document.getElementById('modalNotificaciones');
     const container = document.getElementById('listaNotificacionesContainer');
@@ -529,20 +529,25 @@ window.verNotificaciones = async function() {
     container.innerHTML = '<p style="color:#94A3B8; text-align:center;">Cargando...</p>';
 
     try {
-        const q = query(collection(db, "notificaciones"), where("leido", "==", false));
+        const q = query(collection(db, "notificaciones"));
         const snap = await getDocs(q);
         let html = '';
         notificacionesCache = {}; 
         
         snap.forEach(docSnap => {
             const n = docSnap.data();
-            notificacionesCache[docSnap.id] = n; 
-            const textoNotif = n.msg || "Nueva notificación"; 
+            const leidoPor = n.leidoPor || [];
             
-            html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer;">
-                <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 ${textoNotif}</p>
-                <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver detalles</span>
-            </div>`;
+            // Solo mostramos las notificaciones que YO no he leído
+            if (!leidoPor.includes(currentUser)) {
+                notificacionesCache[docSnap.id] = n; 
+                const textoNotif = n.msg || "Nueva notificación"; 
+                
+                html += `<div onclick="abrirAtajoNotificacion('${docSnap.id}')" style="background:rgba(15,23,42,0.8); padding:12px; border-radius:10px; margin-bottom:10px; border-left:4px solid #10B981; cursor:pointer;">
+                    <p style="color:#F8FAFC; font-size:0.9rem; font-weight:bold; margin-bottom:4px;">🔔 ${textoNotif}</p>
+                    <span style="color:#94A3B8; font-size:0.75rem;">Toca aquí para ver detalles</span>
+                </div>`;
+            }
         });
 
         container.innerHTML = html || '<p style="color:#94A3B8; text-align:center;">No hay notificaciones pendientes.</p>';
@@ -551,24 +556,33 @@ window.verNotificaciones = async function() {
     }
 }
 
-/* MODIFICACIÓN 2: Lógica inteligente del clic en la notificación (Detalle de Cuadre vs Ventana Emergente de Única Vista) */
 window.abrirAtajoNotificacion = async function(notifId) {
     try {
         mostrarCarga(true, "Abriendo Notificación...");
         const n = notificacionesCache[notifId]; 
         
-        // La marcamos como leída eliminándola inmediatamente de Firebase
-        await deleteDoc(doc(db, "notificaciones", notifId));
+        // Lógica de notificaciones independientes
+        const leidoPor = n.leidoPor || [];
+        if (!leidoPor.includes(currentUser)) {
+            leidoPor.push(currentUser);
+            // Si la han leído 3 personas (María, Marikarla y Yoandri), ya podemos borrarla de la DB para limpiar
+            if (leidoPor.length >= 3) {
+                await deleteDoc(doc(db, "notificaciones", notifId));
+            } else {
+                // Si aún faltan personas por leerla, solo me agrego a la lista de "leídos"
+                const notifRef = doc(db, "notificaciones", notifId);
+                await updateDoc(notifRef, { leidoPor: arrayUnion(currentUser) });
+            }
+        }
+
         document.getElementById('modalNotificaciones').style.display = 'none';
         verificarNotificacionesPendientes();
         
         if (n && n.cuadreId && n.cuadreId !== 'undefined' && n.cuadreId !== 'null') {
-            // Es un cuadre: vamos al detalle
             verDetalleCuadre(n.cuadreId);
         } else if (n && n.tipo === 'ajuste_inventario') {
-            mostrarCarga(false); // Quitamos la carga porque no nos movemos de pantalla
+            mostrarCarga(false); 
             
-            // Construimos la lista visual con lo que cambió
             let htmlDetalles = "";
             if (n.detalles && n.detalles.length > 0) {
                 htmlDetalles = n.detalles.join('<br><br>');
@@ -576,7 +590,6 @@ window.abrirAtajoNotificacion = async function(notifId) {
                 htmlDetalles = "Se realizaron ajustes internos que no afectan el precio de venta.";
             }
 
-            // Usamos tu modal genérico para el cartel emergente de vista única
             document.getElementById('modalIcon').innerText = "📋";
             document.getElementById('modalTitle').innerText = "Detalle de Ajustes";
             document.getElementById('modalMessage').innerHTML = `<div style="text-align:left; font-size:14px; margin-top:10px; padding:12px; background:#f8fafc; border-radius:6px; color:#0f172a; border: 1px solid #cbd5e1; max-height: 300px; overflow-y: auto;">${htmlDetalles}</div>`;
@@ -584,7 +597,6 @@ window.abrirAtajoNotificacion = async function(notifId) {
             const btnAceptarModal = document.querySelector('#customModal .btn-primary');
             btnAceptarModal.onclick = function() {
                 document.getElementById('customModal').style.display = 'none';
-                // Al darle a "Entendido", se cierra y como ya se borró de la DB, desaparece para siempre.
             };
             document.getElementById('customModal').style.display = 'flex';
         } else {
@@ -869,6 +881,12 @@ window.verDetalleCuadre = async function(id) {
             }
             html += `</ul>`;
             
+            // RENDIMOS LAS NOTAS AQUÍ EN EL HISTORIAL
+            if (h.nota) {
+                html += `<h5 style="color:#0f766e; margin-bottom:6px; margin-top:15px; font-size:13px; text-transform:uppercase; border-top:1px dashed #cbd5e1; padding-top:8px;">📝 Notas del Turno:</h5>`;
+                html += `<div style="background:#fffbeb; padding:12px; border-radius:6px; border:1px solid #fde68a; font-size:13px; color:#92400e; margin-bottom:10px; line-height: 1.5;">${h.nota.replace(/\n/g, '<br>')}</div>`;
+            }
+
             if (!esYoandri) {
                 html += `<div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #cbd5e1;">
                             <button onclick="eliminarCuadre('${id}')" style="background-color: #EF4444; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; gap: 8px; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);">
@@ -1210,7 +1228,6 @@ window.cerrarAjustes = function() {
     }
 }
 
-/* MODIFICACIÓN 3: Lógica inteligente de generar los reportes de ajustes para el cartel emergente */
 document.getElementById('btn-guardar-ajustes').addEventListener('click', async () => {
     const btnGuardar = document.getElementById('btn-guardar-ajustes');
     btnGuardar.disabled = true;
@@ -1219,7 +1236,7 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
     try {
         const filas = document.querySelectorAll('#body-ajustes-inventario tr');
         let nuevoOrden = [];
-        let detallesAjuste = []; // <- Array que armará la lista visual de cambios
+        let detallesAjuste = [];
         let productosActuales = []; 
 
         for (let fila of filas) {
@@ -1236,18 +1253,18 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
                 const dataCache = productosMapCache[nombre];
                 
                 if (!dataCache) {
-                    // Producto nuevo
                     await addDoc(collection(db, "productos"), { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta });
                     detallesAjuste.push(`➕ <b>Añadido:</b> "${nombre}" a $${pVenta}`);
                 } else if (dataCache.precioCompra !== pCompra || dataCache.precioVenta !== pVenta) {
                     
-                    // Modificamos base de datos
                     const productoRef = doc(db, "productos", dataCache.idReal);
                     await setDoc(productoRef, { nombre: nombre, precioCompra: pCompra, precioVenta: pVenta }, { merge: true });
                     
-                    // Solo revelamos en el detalle visual si el precio de VENTA cambió
                     if (dataCache.precioVenta !== pVenta) {
                         detallesAjuste.push(`🔄 <b>Modificado:</b> "${nombre}" pasó de $${dataCache.precioVenta || 0} a $${pVenta}`);
+                    }
+                    else if (dataCache.precioCompra !== pCompra) {
+                        detallesAjuste.push(`⚙️ <b>Costo Interno:</b> "${nombre}" pasó de $${dataCache.precioCompra || 0} a $${pCompra}`);
                     }
                 }
             }
@@ -1255,7 +1272,6 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
 
         for (let nombreEnCache in productosMapCache) {
             if (!productosActuales.includes(nombreEnCache)) {
-                // Producto eliminado
                 const idRealEliminar = productosMapCache[nombreEnCache].idReal;
                 if (idRealEliminar) {
                     await deleteDoc(doc(db, "productos", idRealEliminar));
@@ -1267,12 +1283,12 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
         const ordenRef = doc(db, "configuracion", "orden_inventario");
         await setDoc(ordenRef, { orden: nuevoOrden });
 
-        // Guardamos la notificación con todo el detalle inyectado si hubo cambios reportables
         if (detallesAjuste.length > 0) {
+            // Creada con arreglo leidoPor vacío para notificaciones independientes
             await addDoc(collection(db, "notificaciones"), {
-                leido: false, 
+                leidoPor: [], 
                 msg: `${currentUserName} realizó cambios en el inventario.`, 
-                detalles: detallesAjuste, // Aquí pasamos el arreglo completo
+                detalles: detallesAjuste,
                 time: serverTimestamp(),
                 usuario: currentUserName, 
                 tipo: "ajuste_inventario"
@@ -1309,3 +1325,4 @@ document.getElementById('btn-guardar-ajustes').addEventListener('click', async (
         btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar todos los cambios';
     }
 });
+
