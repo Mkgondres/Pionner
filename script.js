@@ -162,16 +162,12 @@ async function verifyPin() {
                 mostrarCarga(false);
             } else {
                 mostrarCarga(false);
-                // CHISME 1: Nos dirá si está leyendo mal el PIN
-                alert(`Error de PIN:\nTú escribiste: "${pinUsuario}"\nFirebase tiene: "${pinBaseDatos}"`);
                 showMessage('PIN incorrecto.', 'error');
                 userPinInput.value = '';
             }
         } else {
             mostrarCarga(false);
-            // CHISME 2: Nos dirá si el ID del usuario no coincide exactamente con el de Firebase
-            alert(`Error Crítico:\nNo se encontró el documento exacto para el ID: "${currentUser}" en Firebase. Revisa mayúsculas/minúsculas.`);
-        }
+            
     } catch (e) {
         mostrarCarga(false);
         // CHISME 3: Nos dirá si hay un error de conexión o permisos
