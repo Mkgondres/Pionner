@@ -138,8 +138,9 @@ async function verifyPin() {
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-            // Convertimos el texto del input a número para que coincida con Firebase
-            if (Number(pinIngresado) === docSnap.data().pin) {
+            // LA SOLUCIÓN DEFINITIVA: Convertimos AMBOS lados a Número. 
+            // Así no importa si en Firebase están como texto o como número, la matemática no falla.
+            if (Number(pinIngresado) === Number(docSnap.data().pin)) {
                 
                 try {
                     const ordenSnap = await getDoc(doc(db, "configuracion", "orden_inventario"));
@@ -171,6 +172,7 @@ async function verifyPin() {
         configurarPantallaPrincipal(currentUser, currentUserName);
     }
 }
+
 
 
 window.configurarPantallaPrincipal = function(userId, userName) {
