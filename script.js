@@ -144,7 +144,7 @@ async function verifyPin() {
             const pinUsuario = String(pinIngresado).trim();
 
             if (pinUsuario === pinBaseDatos) {
-                // Entra exitosamente
+                // Entra exitosamente con internet
                 try {
                     const ordenSnap = await getDoc(doc(db, "configuracion", "orden_inventario"));
                     if (ordenSnap.exists() && ordenSnap.data().orden) {
@@ -166,19 +166,26 @@ async function verifyPin() {
                 userPinInput.value = '';
             }
         } else {
+            // El usuario no existe en la base de datos
             mostrarCarga(false);
-            
+            showMessage('Usuario no encontrado o PIN incorrecto.', 'error');
+        }
     } catch (e) {
+        // Falló el internet: Activamos el MODO OFFLINE
         mostrarCarga(false);
-        // CHISME 3: Nos dirá si hay un error de conexión o permisos
-        alert(`Error de sistema:\n${e.message}`);
         
-        // Esto lo dejamos por si quieres que entre a la fuerza aunque falle el internet (modo offline)
+        // Entramos a la fuerza a la aplicación
         document.getElementById('authSection').classList.remove('active');
         document.getElementById('mainApp').classList.add('active');
+        
+        // Actualizamos el historial para que el botón "Atrás" del celular funcione bien
+        history.pushState({ id: 'mainApp' }, ''); 
+        
+        // Configuramos la pantalla con los datos guardados en memoria
         configurarPantallaPrincipal(currentUser, currentUserName);
     }
 }
+
 
 
 
