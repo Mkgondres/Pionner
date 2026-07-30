@@ -134,14 +134,17 @@ async function verifyPin() {
 
     try {
         mostrarCarga(true, 'Iniciando sesión...');
+        
+        // Buscamos el documento en Firebase
         const docRef = doc(db, "usuarios", currentUser);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-            // LA SOLUCIÓN DEFINITIVA: Convertimos AMBOS lados a Número. 
-            // Así no importa si en Firebase están como texto o como número, la matemática no falla.
-            if (Number(pinIngresado) === Number(docSnap.data().pin)) {
-                
+            const pinBaseDatos = String(docSnap.data().pin).trim();
+            const pinUsuario = String(pinIngresado).trim();
+
+            if (pinUsuario === pinBaseDatos) {
+                // Entra exitosamente
                 try {
                     const ordenSnap = await getDoc(doc(db, "configuracion", "orden_inventario"));
                     if (ordenSnap.exists() && ordenSnap.data().orden) {
@@ -159,19 +162,28 @@ async function verifyPin() {
                 mostrarCarga(false);
             } else {
                 mostrarCarga(false);
+                // CHISME 1: Nos dirá si está leyendo mal el PIN
+                alert(`Error de PIN:\nTú escribiste: "${pinUsuario}"\nFirebase tiene: "${pinBaseDatos}"`);
                 showMessage('PIN incorrecto.', 'error');
                 userPinInput.value = '';
             }
         } else {
             mostrarCarga(false);
+            // CHISME 2: Nos dirá si el ID del usuario no coincide exactamente con el de Firebase
+            alert(`Error Crítico:\nNo se encontró el documento exacto para el ID: "${currentUser}" en Firebase. Revisa mayúsculas/minúsculas.`);
         }
     } catch (e) {
         mostrarCarga(false);
+        // CHISME 3: Nos dirá si hay un error de conexión o permisos
+        alert(`Error de sistema:\n${e.message}`);
+        
+        // Esto lo dejamos por si quieres que entre a la fuerza aunque falle el internet (modo offline)
         document.getElementById('authSection').classList.remove('active');
         document.getElementById('mainApp').classList.add('active');
         configurarPantallaPrincipal(currentUser, currentUserName);
     }
 }
+
 
 
 
